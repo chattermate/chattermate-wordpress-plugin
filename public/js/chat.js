@@ -251,7 +251,11 @@
 		whenWidget( function ( widget ) {
 			var text = pendingMessage;
 			pendingMessage = null;
-			widget.open( text ? { message: text } : undefined );
+			// After the click is over: the widget closes its panel on clicks outside
+			// it, and this click is still on its way up to the document.
+			window.setTimeout( function () {
+				widget.open( text ? { message: text } : undefined );
+			}, 0 );
 		} );
 	}
 

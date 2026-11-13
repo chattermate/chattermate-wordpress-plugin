@@ -525,7 +525,7 @@ function chattermate_render_preview_card( $options, $connection ) {
 				data-script-url="<?php echo esc_url( chattermate_script_url( $options ) ); ?>"
 				data-api-url="<?php echo esc_url( '' !== $options['api_url'] ? chattermate_api_url( $options ) : '' ); ?>"
 				data-identity="<?php echo esc_attr( (string) wp_json_encode( chattermate_identity_config( $options ) ) ); ?>"
-				data-loaded-text="<?php esc_attr_e( 'The chat is loading at the bottom right of this page.', 'chattermate-chat' ); ?>"
+				data-loaded-text="<?php esc_attr_e( 'Your chat is at the bottom right of this page. Ask it what your customers ask.', 'chattermate-chat' ); ?>"
 				data-open-text="<?php esc_attr_e( 'Open the chat', 'chattermate-chat' ); ?>"><?php esc_html_e( 'Show live preview', 'chattermate-chat' ); ?></button>
 		<?php elseif ( '' === $options['widget_id'] ) : ?>
 			<p><?php esc_html_e( 'Save a Widget ID to try the chat here.', 'chattermate-chat' ); ?></p>
