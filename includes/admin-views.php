@@ -130,7 +130,7 @@ function chattermate_can_preview( $options, $connection ) {
  */
 function chattermate_render_logo( $size ) {
 	printf(
-		'<svg class="chattermate-logo" width="%1$d" height="%1$d" viewBox="0 0 44 44" aria-hidden="true" focusable="false"><rect width="44" height="44" rx="12" fill="#12150E"/><circle cx="13" cy="22" r="4" fill="#C9F24E"/><circle cx="22" cy="22" r="4" fill="#C9F24E"/><circle cx="31" cy="22" r="4" fill="#FF9D87"/></svg>',
+		'<svg class="chattermate-logo" width="%1$d" height="%1$d" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="16" fill="#12150E"/><circle cx="23" cy="32" r="8" fill="#C9F24E"/><circle cx="41" cy="32" r="8" fill="#FF9D87"/></svg>',
 		absint( $size )
 	);
 }
