@@ -56,7 +56,7 @@ function chattermate_identity_ready( $options ) {
  * @return bool
  */
 function chattermate_identity_for_visitor( $options ) {
-	return chattermate_identity_ready( $options ) && is_user_logged_in();
+	return chattermate_identity_ready( $options ) && is_user_logged_in() && ! get_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT );
 }
 
 /**
@@ -133,7 +133,7 @@ function chattermate_current_user_token( $options ) {
  * @return string
  */
 function chattermate_token_owner( $options, $user ) {
-	return md5( implode( '|', array( chattermate_api_url( $options ), $options['widget_id'], $user->user_email, chattermate_user_display_name( $user ) ) ) );
+	return md5( implode( '|', array( chattermate_api_url( $options ), chattermate_api_key(), $options['widget_id'], $user->user_email, chattermate_user_display_name( $user ) ) ) );
 }
 
 /**
@@ -174,14 +174,17 @@ function chattermate_request_token( $options, $user ) {
 	}
 
 	$code = (int) wp_remote_retrieve_response_code( $response );
-	if ( in_array( $code, array( 401, 403, 404 ), true ) ) {
+	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+	// 404 "Widget '...' not found" means the key is for another organization; a
+	// bare "Not Found" is a wrong API URL, which is not the key's fault.
+	$wrong_org = 404 === $code && is_array( $body ) && isset( $body['detail'] ) && 0 === strpos( (string) $body['detail'], 'Widget ' );
+	if ( 401 === $code || 403 === $code || $wrong_org ) {
 		// The key is wrong, revoked or for another organization's widget: stop
 		// every user from retrying, and tell the admin on the settings screen.
 		set_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT, $code, HOUR_IN_SECONDS );
 		return $failed;
 	}
 
-	$body = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( 201 !== $code || empty( $body['data']['token'] ) || ! is_string( $body['data']['token'] ) ) {
 		return $failed;
 	}
@@ -215,12 +218,20 @@ function chattermate_ajax_token() {
 	nocache_headers();
 	check_ajax_referer( 'chattermate_token', 'nonce' );
 
+	// Each answer carries the nonce for the next request, so a tab left open
+	// long enough for the page's nonce to lapse can still renew its token.
+	$next  = wp_create_nonce( 'chattermate_token' );
 	$token = chattermate_current_user_token( chattermate_get_options() );
 	if ( '' === $token ) {
-		wp_send_json_error( null, 503 );
+		wp_send_json_error( array( 'nonce' => $next ), 503 );
 	}
 
-	wp_send_json_success( array( 'token' => $token ) );
+	wp_send_json_success(
+		array(
+			'token' => $token,
+			'nonce' => $next,
+		)
+	);
 }
 add_action( 'wp_ajax_chattermate_token', 'chattermate_ajax_token' );
 
@@ -242,15 +253,16 @@ function chattermate_identity_config( $options ) {
 }
 
 /**
- * JavaScript, run before the widget, that forgets a signed-in visitor's stored
- * token in a browser where nobody is signed in now (a shared computer after
- * logout), so the next person starts as an anonymous visitor. Printed whenever
- * the visitor isn't signed in, whether or not the feature is still on.
+ * JavaScript, run before the widget, that forgets a signed-in customer's stored
+ * token in a browser where they no longer are (a shared computer after logout,
+ * someone else logged in, or the feature since turned off), so nobody chats as
+ * the previous person. Printed for every visitor who doesn't chat as themselves.
  *
- * @return string JavaScript, or '' for a signed-in visitor.
+ * @param array $options Settings.
+ * @return string JavaScript, or '' when chat.js handles identity.
  */
-function chattermate_signed_out_js() {
-	if ( is_user_logged_in() ) {
+function chattermate_signed_out_js( $options ) {
+	if ( chattermate_identity_for_visitor( $options ) ) {
 		return '';
 	}
 

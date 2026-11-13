@@ -56,9 +56,16 @@
 
 		return window.fetch( settings.identity.url, { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: body } )
 			.then( function ( response ) {
-				return response.ok ? response.json() : null;
+				// A refusal still carries the next nonce, so read it either way.
+				return response.json().catch( function () {
+					return null;
+				} );
 			} )
 			.then( function ( answer ) {
+				// Every answer brings the nonce for the next request (renewals).
+				if ( answer && answer.data && 'string' === typeof answer.data.nonce ) {
+					settings.identity.nonce = answer.data.nonce;
+				}
 				return answer && answer.success && answer.data && 'string' === typeof answer.data.token ? answer.data.token : '';
 			} )
 			.catch( function () {

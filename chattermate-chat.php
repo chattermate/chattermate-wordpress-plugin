@@ -77,7 +77,7 @@ register_activation_hook( __FILE__, 'chattermate_activate' );
 function chattermate_flag_setup() {
 	// A first install starts with page details for the AI on; a site that already
 	// has settings keeps what its admin chose.
-	if ( false === get_option( CHATTERMATE_OPTION ) ) {
+	if ( null === get_option( CHATTERMATE_OPTION, null ) ) {
 		add_option( CHATTERMATE_OPTION, array_merge( chattermate_default_options(), array( 'share_context' => true ) ) );
 	}
 

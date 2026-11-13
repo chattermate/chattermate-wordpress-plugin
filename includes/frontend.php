@@ -146,7 +146,7 @@ function chattermate_widget_globals( $options ) {
 		$js .= 'window.chattermateBaseUrl=' . wp_json_encode( chattermate_api_url( $options ) ) . ';';
 	}
 
-	return $js . chattermate_signed_out_js();
+	return $js . chattermate_signed_out_js( $options );
 }
 
 /**

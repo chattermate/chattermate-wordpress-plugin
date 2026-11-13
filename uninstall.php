@@ -23,6 +23,7 @@ function chattermate_uninstall_site() {
 	delete_option( 'chattermate_requires_token' );
 	delete_transient( 'chattermate_connection' );
 	delete_transient( 'chattermate_key_rejected' );
+	delete_option( 'chattermate_connect_states' );
 
 	// Cached visitor tokens: user options, stored under this site's table prefix.
 	global $wpdb;

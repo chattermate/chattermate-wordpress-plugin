@@ -212,6 +212,9 @@ function chattermate_get_connection( $options ) {
  * After the settings are saved: re-check the widget and settle the setup notice.
  */
 function chattermate_on_options_saved() {
+	// A new widget, API or key gets a fresh try at signed-in tokens.
+	delete_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT );
+
 	$options = chattermate_get_options();
 	if ( '' !== $options['widget_id'] ) {
 		delete_option( CHATTERMATE_SETUP_FLAG );

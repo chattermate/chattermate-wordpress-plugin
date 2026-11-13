@@ -215,7 +215,7 @@ function chattermate_render_first_run( $options ) {
 			<h2 id="chattermate-hero-title"><?php esc_html_e( 'Support rebuilt around AI, on every page of your site', 'chattermate-chat' ); ?></h2>
 			<p><?php esc_html_e( 'ChatterMate answers from your own content, hands over to your team when it should, and turns hard questions into tickets.', 'chattermate-chat' ); ?></p>
 			<div class="chattermate-hero__actions">
-				<a class="chattermate-button chattermate-button--lime" href="<?php echo esc_url( chattermate_connect_url( $options ) ); ?>"><?php esc_html_e( 'Connect with ChatterMate', 'chattermate-chat' ); ?></a>
+				<a class="chattermate-button chattermate-button--lime" href="<?php echo esc_url( chattermate_connect_start_url() ); ?>"><?php esc_html_e( 'Connect with ChatterMate', 'chattermate-chat' ); ?></a>
 				<a class="chattermate-button chattermate-button--outline-light" href="<?php echo esc_url( $app . '/signup' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create free account', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 			</div>
 		</div>
@@ -253,7 +253,7 @@ function chattermate_render_connect_card( $options, $view ) {
 			<span><?php echo esc_html( $view['detail'] ); ?></span>
 		</div>
 		<p class="chattermate-links">
-			<a class="chattermate-button chattermate-button--primary" href="<?php echo esc_url( chattermate_connect_url( $options ) ); ?>"><?php echo '' === $options['widget_id'] ? esc_html__( 'Connect with ChatterMate', 'chattermate-chat' ) : esc_html__( 'Connect a different agent', 'chattermate-chat' ); ?></a>
+			<a class="chattermate-button chattermate-button--primary" href="<?php echo esc_url( chattermate_connect_start_url() ); ?>"><?php echo '' === $options['widget_id'] ? esc_html__( 'Connect with ChatterMate', 'chattermate-chat' ) : esc_html__( 'Connect a different agent', 'chattermate-chat' ); ?></a>
 			<a class="chattermate-button chattermate-button--outline" href="<?php echo esc_url( $app . '/ai-agents' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Get your Widget ID', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 			<a class="chattermate-button chattermate-button--outline" href="<?php echo esc_url( $app . '/signup' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create free account', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 		</p>
