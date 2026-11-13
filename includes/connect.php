@@ -171,7 +171,9 @@ function chattermate_handle_connect_return() {
 	// Runs the sanitize callback and the save hooks, which check the widget.
 	update_option( CHATTERMATE_OPTION, $options );
 
-	chattermate_connect_redirect( 'connected' );
+	// The save hooks just checked the widget: say what they found.
+	$connection = chattermate_get_connection( chattermate_get_options() );
+	chattermate_connect_redirect( $connection && 'connected' === $connection['status'] ? 'connected' : 'saved' );
 }
 add_action( 'admin_post_chattermate_connect', 'chattermate_handle_connect_return' );
 
@@ -201,6 +203,7 @@ function chattermate_connect_redirect( $outcome ) {
 function chattermate_connect_messages() {
 	return array(
 		'connected' => array( 'success', __( 'Connected. Your Widget ID is saved and the chat is live on your site.', 'chattermate-chat' ) ),
+		'saved'     => array( 'warning', __( 'Your Widget ID is saved, but the check below needs attention.', 'chattermate-chat' ) ),
 		'cancelled' => array( 'info', __( 'Connection cancelled. Nothing was changed.', 'chattermate-chat' ) ),
 		'expired'   => array( 'warning', __( 'That connection link has expired or was already used. Click Connect with ChatterMate again.', 'chattermate-chat' ) ),
 		'missing'   => array( 'warning', __( 'ChatterMate did not send a Widget ID. Click Connect with ChatterMate again, or paste the ID.', 'chattermate-chat' ) ),

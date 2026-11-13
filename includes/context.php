@@ -103,6 +103,15 @@ function chattermate_page_title() {
 		// What a visitor searched for is theirs, and the page may be cached: not sent.
 		return '';
 	}
+	if ( function_exists( 'is_shop' ) && is_shop() ) {
+		return get_the_title( wc_get_page_id( 'shop' ) );
+	}
+	if ( is_category() || is_tag() || is_tax() ) {
+		return single_term_title( '', false );
+	}
+	if ( is_post_type_archive() ) {
+		return post_type_archive_title( '', false );
+	}
 	if ( is_archive() ) {
 		return wp_strip_all_tags( get_the_archive_title() );
 	}
@@ -142,7 +151,9 @@ function chattermate_product_context() {
  * @return string
  */
 function chattermate_context_text( $text ) {
-	$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $text ) ) );
+	// WordPress titles carry entities (&#038;): the AI should read the characters.
+	$text = html_entity_decode( wp_strip_all_tags( (string) $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	$text = trim( preg_replace( '/\s+/u', ' ', $text ) );
 
 	return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, CHATTERMATE_CONTEXT_TEXT_MAX ) : substr( $text, 0, CHATTERMATE_CONTEXT_TEXT_MAX );
 }

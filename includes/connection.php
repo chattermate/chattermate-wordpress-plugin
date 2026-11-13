@@ -30,10 +30,10 @@ function chattermate_request_widget_status( $widget_id, $api_url ) {
 	$base     = $api_url . '/widgets/' . rawurlencode( $widget_id );
 	$response = chattermate_api_get( $base . '/status' );
 	if ( 404 === $response['code'] && 'Not Found' === $response['detail'] ) {
-		return chattermate_read_legacy_widget( chattermate_api_get( $base ) );
+		return chattermate_read_legacy_widget( chattermate_api_get( $base ), $widget_id );
 	}
 
-	return chattermate_read_widget_status( $response );
+	return chattermate_read_widget_status( $response, $widget_id );
 }
 
 /**
@@ -75,13 +75,15 @@ function chattermate_api_get( $url ) {
 }
 
 /**
- * Map a GET /widgets/{id}/status answer.
+ * Map a GET /widgets/{id}/status answer. A 200 counts only when it is about this
+ * widget: a site or app that answers any path with 200 is not ChatterMate.
  *
- * @param array $response From chattermate_api_get().
+ * @param array  $response  From chattermate_api_get().
+ * @param string $widget_id The widget asked about.
  * @return array{status:string, agent_name:string}
  */
-function chattermate_read_widget_status( $response ) {
-	if ( 200 === $response['code'] ) {
+function chattermate_read_widget_status( $response, $widget_id ) {
+	if ( 200 === $response['code'] && isset( $response['body']['widget_id'] ) && $widget_id === $response['body']['widget_id'] ) {
 		$name = isset( $response['body']['agent_name'] ) ? sanitize_text_field( (string) $response['body']['agent_name'] ) : '';
 
 		return array(
@@ -96,11 +98,12 @@ function chattermate_read_widget_status( $response ) {
 /**
  * Map a GET /widgets/{id} answer, from an API without /status.
  *
- * @param array $response From chattermate_api_get().
+ * @param array  $response  From chattermate_api_get().
+ * @param string $widget_id The widget asked about.
  * @return array{status:string, agent_name:string}
  */
-function chattermate_read_legacy_widget( $response ) {
-	if ( 200 === $response['code'] ) {
+function chattermate_read_legacy_widget( $response, $widget_id ) {
+	if ( 200 === $response['code'] && isset( $response['body']['id'] ) && $widget_id === $response['body']['id'] ) {
 		return array(
 			'status'     => 'connected',
 			'agent_name' => chattermate_agent_name( $response['body'] ),
@@ -239,6 +242,8 @@ add_action( 'update_option_' . CHATTERMATE_OPTION, 'chattermate_on_options_saved
  */
 function chattermate_on_unchanged_save( $value, $old_value ) {
 	if ( $value === $old_value ) {
+		// Saving again is how an admin retries: a rejected key gets a fresh try too.
+		delete_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT );
 		chattermate_refresh_connection();
 	}
 

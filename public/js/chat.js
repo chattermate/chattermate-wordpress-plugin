@@ -162,7 +162,7 @@
 		script.onerror = function () {
 			// Blocked (an ad blocker, a consent tool) or offline: drop what was waiting.
 			failed = true;
-			waiters = [];
+			giveUp();
 		};
 		document.body.appendChild( script );
 
@@ -222,7 +222,7 @@
 			}
 			if ( failed || Date.now() - started > WAIT_MS ) {
 				polling = false;
-				waiters = [];
+				giveUp();
 				return;
 			}
 			window.setTimeout( check, 150 );
@@ -232,6 +232,12 @@
 	/* Opening ------------------------------------------------------------- */
 
 	var pendingMessage = null;
+
+	// The widget never came: forget what waited, so a later click starts afresh.
+	function giveUp() {
+		waiters = [];
+		pendingMessage = null;
+	}
 
 	// The latest click wins: several clicks while the widget loads open it once.
 	function openChat( message ) {

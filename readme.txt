@@ -134,7 +134,7 @@ Yes. Under **Advanced**, set the widget script URL (your app URL followed by `/w
 1. Connected, with the live preview, quick links and your AI agent's name.
 2. Choose where the chat appears, hide it on checkout, and load it on first interaction.
 3. Personal answers: page and cart details for the AI, and signed-in customers.
-4. First run: connect in one click, with a clear message when a Widget ID is wrong.
+4. First run: connect in one click, or paste your Widget ID.
 5. The ChatterMate chat on a WordPress store.
 
 == Changelog ==
