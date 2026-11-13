@@ -24,7 +24,7 @@ function chattermate_default_options() {
 		'hide_for_admins'   => false,
 		'hide_woo_checkout' => false,
 		'load_timing'       => 'immediate',
-		'share_context'     => true,
+		'share_context'     => false,
 		'identify_users'    => false,
 		'script_url'        => '',
 		'api_url'           => '',

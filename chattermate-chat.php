@@ -3,7 +3,7 @@
  * Plugin Name:       ChatterMate Chat
  * Plugin URI:        https://chattermate.chat
  * Description:       AI customer support on your WordPress site. ChatterMate answers from your own content, hands over to your team, and turns hard questions into tickets.
- * Version:           1.0.1
+ * Version:           1.1.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            ChatterMate
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CHATTERMATE_VERSION', '1.0.1' );
+define( 'CHATTERMATE_VERSION', '1.1.0' );
 define( 'CHATTERMATE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CHATTERMATE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -75,6 +75,12 @@ register_activation_hook( __FILE__, 'chattermate_activate' );
  * Raise the setup notice on the current site while it has no Widget ID.
  */
 function chattermate_flag_setup() {
+	// A first install starts with page details for the AI on; a site that already
+	// has settings keeps what its admin chose.
+	if ( false === get_option( CHATTERMATE_OPTION ) ) {
+		add_option( CHATTERMATE_OPTION, array_merge( chattermate_default_options(), array( 'share_context' => true ) ) );
+	}
+
 	$options = chattermate_get_options();
 	if ( '' === $options['widget_id'] ) {
 		update_option( CHATTERMATE_SETUP_FLAG, 1, false );

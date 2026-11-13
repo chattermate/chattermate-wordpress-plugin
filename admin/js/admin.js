@@ -59,10 +59,37 @@
 		} );
 	}
 
+	// The signed-in admin's own token, when "Recognise signed-in customers" is on.
+	function fetchToken( identity ) {
+		if ( ! identity || ! identity.url || ! window.fetch ) {
+			return Promise.resolve( '' );
+		}
+		var body = new window.FormData();
+		body.append( 'nonce', identity.nonce );
+
+		return window.fetch( identity.url, { method: 'POST', credentials: 'same-origin', body: body } )
+			.then( function ( response ) {
+				return response.ok ? response.json() : null;
+			} )
+			.then( function ( answer ) {
+				return answer && answer.success && answer.data && answer.data.token ? answer.data.token : '';
+			} )
+			.catch( function () {
+				return '';
+			} );
+	}
+
 	function initPreview() {
 		var button = document.querySelector( '[data-chattermate-preview]' );
 		if ( ! button ) {
 			return;
+		}
+
+		var identity = null;
+		try {
+			identity = JSON.parse( button.getAttribute( 'data-identity' ) || 'null' );
+		} catch ( e ) {
+			identity = null;
 		}
 
 		button.addEventListener( 'click', function () {
@@ -79,21 +106,26 @@
 			if ( button.getAttribute( 'data-api-url' ) ) {
 				window.chattermateBaseUrl = button.getAttribute( 'data-api-url' );
 			}
+			button.disabled = true;
+
 			// With signed-in customers on, the preview chats as you.
-			if ( button.getAttribute( 'data-token' ) ) {
-				window.chattermateToken = button.getAttribute( 'data-token' );
-			}
+			fetchToken( identity ).then( function ( token ) {
+				if ( token ) {
+					window.chattermateToken = token;
+				}
 
-			var script = document.createElement( 'script' );
-			script.src = button.getAttribute( 'data-script-url' );
-			script.async = true;
-			document.body.appendChild( script );
+				var script = document.createElement( 'script' );
+				script.src = button.getAttribute( 'data-script-url' );
+				script.async = true;
+				document.body.appendChild( script );
 
-			var text = document.querySelector( '[data-chattermate-preview-text]' );
-			if ( text ) {
-				text.textContent = button.getAttribute( 'data-loaded-text' );
-			}
-			button.textContent = button.getAttribute( 'data-open-text' ) || button.textContent;
+				var text = document.querySelector( '[data-chattermate-preview-text]' );
+				if ( text ) {
+					text.textContent = button.getAttribute( 'data-loaded-text' );
+				}
+				button.textContent = button.getAttribute( 'data-open-text' ) || button.textContent;
+				button.disabled = false;
+			} );
 		} );
 	}
 

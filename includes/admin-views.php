@@ -142,6 +142,7 @@ function chattermate_render_admin_page() {
 		<?php chattermate_render_header( $options, $view ); ?>
 		<hr class="wp-header-end">
 		<?php settings_errors(); ?>
+		<?php chattermate_render_connect_notice(); ?>
 
 		<?php
 		if ( '' === $options['widget_id'] ) {
@@ -214,14 +215,14 @@ function chattermate_render_first_run( $options ) {
 			<h2 id="chattermate-hero-title"><?php esc_html_e( 'Support rebuilt around AI, on every page of your site', 'chattermate-chat' ); ?></h2>
 			<p><?php esc_html_e( 'ChatterMate answers from your own content, hands over to your team when it should, and turns hard questions into tickets.', 'chattermate-chat' ); ?></p>
 			<div class="chattermate-hero__actions">
-				<a class="chattermate-button chattermate-button--lime" href="<?php echo esc_url( $app . '/signup' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create free account', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
-				<a class="chattermate-button chattermate-button--outline-light" href="<?php echo esc_url( $app . '/ai-agents' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'I have an account: get my Widget ID', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
+				<a class="chattermate-button chattermate-button--lime" href="<?php echo esc_url( chattermate_connect_url( $options ) ); ?>"><?php esc_html_e( 'Connect with ChatterMate', 'chattermate-chat' ); ?></a>
+				<a class="chattermate-button chattermate-button--outline-light" href="<?php echo esc_url( $app . '/signup' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create free account', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 			</div>
 		</div>
 		<ol class="chattermate-steps">
 			<li><span class="chattermate-steps__n">1</span><span><strong><?php esc_html_e( 'Create your account.', 'chattermate-chat' ); ?></strong><br><?php esc_html_e( 'It is free to start.', 'chattermate-chat' ); ?></span></li>
 			<li><span class="chattermate-steps__n">2</span><span><strong><?php esc_html_e( 'Train it on your site.', 'chattermate-chat' ); ?></strong><br><?php esc_html_e( 'Add your website, docs and FAQs.', 'chattermate-chat' ); ?></span></li>
-			<li><span class="chattermate-steps__n">3</span><span><strong><?php esc_html_e( 'Paste your Widget ID below.', 'chattermate-chat' ); ?></strong><br><?php esc_html_e( 'AI Agents, then your agent, then Widget.', 'chattermate-chat' ); ?></span></li>
+			<li><span class="chattermate-steps__n">3</span><span><strong><?php esc_html_e( 'Connect this site.', 'chattermate-chat' ); ?></strong><br><?php esc_html_e( 'Click Connect with ChatterMate and pick your agent, or paste its Widget ID below.', 'chattermate-chat' ); ?></span></li>
 		</ol>
 	</section>
 	<?php
@@ -252,6 +253,7 @@ function chattermate_render_connect_card( $options, $view ) {
 			<span><?php echo esc_html( $view['detail'] ); ?></span>
 		</div>
 		<p class="chattermate-links">
+			<a class="chattermate-button chattermate-button--primary" href="<?php echo esc_url( chattermate_connect_url( $options ) ); ?>"><?php echo '' === $options['widget_id'] ? esc_html__( 'Connect with ChatterMate', 'chattermate-chat' ) : esc_html__( 'Connect a different agent', 'chattermate-chat' ); ?></a>
 			<a class="chattermate-button chattermate-button--outline" href="<?php echo esc_url( $app . '/ai-agents' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Get your Widget ID', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 			<a class="chattermate-button chattermate-button--outline" href="<?php echo esc_url( $app . '/signup' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create free account', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
 		</p>
@@ -421,6 +423,12 @@ function chattermate_render_personal_card( $options ) {
 			<?php elseif ( $options['identify_users'] ) : ?>
 				<p class="chattermate-muted"><strong><?php esc_html_e( 'Add a key to turn this on.', 'chattermate-chat' ); ?></strong></p>
 			<?php endif; ?>
+			<?php if ( $has_key && get_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT ) ) : ?>
+				<div class="chattermate-status chattermate-status--error" role="status">
+					<strong><?php esc_html_e( 'ChatterMate rejected this API key', 'chattermate-chat' ); ?></strong>
+					<span><?php esc_html_e( 'Signed-in visitors chat anonymously for now. Check that the key is from the same ChatterMate organization as the widget, or create a new one and paste it here.', 'chattermate-chat' ); ?></span>
+				</div>
+			<?php endif; ?>
 		</div>
 	</section>
 	<?php
@@ -503,7 +511,7 @@ function chattermate_render_preview_card( $options, $connection ) {
 				data-widget-id="<?php echo esc_attr( $options['widget_id'] ); ?>"
 				data-script-url="<?php echo esc_url( chattermate_script_url( $options ) ); ?>"
 				data-api-url="<?php echo esc_url( '' !== $options['api_url'] ? chattermate_api_url( $options ) : '' ); ?>"
-				data-token="<?php echo esc_attr( chattermate_visitor_token( $options ) ); ?>"
+				data-identity="<?php echo esc_attr( (string) wp_json_encode( chattermate_identity_config( $options ) ) ); ?>"
 				data-loaded-text="<?php esc_attr_e( 'The chat is loading at the bottom right of this page.', 'chattermate-chat' ); ?>"
 				data-open-text="<?php esc_attr_e( 'Open the chat', 'chattermate-chat' ); ?>"><?php esc_html_e( 'Show live preview', 'chattermate-chat' ); ?></button>
 		<?php elseif ( '' === $options['widget_id'] ) : ?>

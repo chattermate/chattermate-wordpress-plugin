@@ -22,6 +22,11 @@ function chattermate_uninstall_site() {
 	delete_option( 'chattermate_api_key' );
 	delete_option( 'chattermate_requires_token' );
 	delete_transient( 'chattermate_connection' );
+	delete_transient( 'chattermate_key_rejected' );
+
+	// Cached visitor tokens: user options, stored under this site's table prefix.
+	global $wpdb;
+	delete_metadata( 'user', 0, $wpdb->get_blog_prefix() . 'chattermate_token', '', true );
 }
 
 if ( is_multisite() ) {
@@ -39,6 +44,3 @@ if ( is_multisite() ) {
 } else {
 	chattermate_uninstall_site();
 }
-
-// Cached visitor tokens live in user meta, shared by every site of a network.
-delete_metadata( 'user', 0, 'chattermate_token', '', true );

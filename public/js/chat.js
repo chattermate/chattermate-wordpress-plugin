@@ -1,17 +1,18 @@
 /**
  * ChatterMate Chat: the plugin's front-end helper.
  *
- * - With "Load the chat" on first interaction, adds the hosted widget script on the
- *   visitor's first scroll, tap, mouse move, click or key press. Nothing is fetched
- *   from ChatterMate before that.
+ * - Loads the hosted widget when the plugin leaves that to it: on the visitor's
+ *   first scroll, tap, mouse move, click or key press ("Load the chat" on first
+ *   interaction), and, for a signed-in customer, once their token is in.
+ * - Signed-in customers: fetches the visitor's own token from admin-ajax.php (never
+ *   printed into the page) and hands the widget a way to renew it.
  * - Opens the chat from the Chat button block, the [chattermate_button] shortcode and
- *   any link to #chattermate on the same page (for example a menu item), prefilling an
- *   optional message.
- * - Hands the widget the page details the plugin printed, plus the visitor's cart when
- *   they open the chat.
+ *   links to #chattermate on the same page, prefilling an optional message.
+ * - Hands the widget the page details the plugin printed, plus the visitor's cart
+ *   (read in their browser) when they open the chat.
  *
- * The plugin sets window.chattermateWp = { src, lazy, context?, cartUrl? } and
- * window.chattermateId first.
+ * The plugin sets window.chattermateWp = { src, lazy, identity?, context?, cartUrl? }
+ * and, when it leaves loading to this script, window.chattermateId first.
  */
 ( function () {
 	'use strict';
@@ -22,27 +23,87 @@
 	}
 
 	var LOAD_EVENTS = [ 'scroll', 'mousemove', 'pointerdown', 'touchstart', 'keydown', 'wheel' ];
+	var IDENTIFIED_KEY = 'chattermate_wp_identified';
 	var WAIT_MS = 30000;
+	// Whether this script adds the widget: on interaction, or after the token.
+	var loadsWidget = !! ( settings.lazy || settings.identity );
 	var injected = false;
 	var failed = false;
 	var waiters = [];
 	var polling = false;
 
+	/* Identity ------------------------------------------------------------ */
+
+	function remember( key, value ) {
+		try {
+			if ( null === value ) {
+				window.localStorage.removeItem( key );
+			} else {
+				window.localStorage.setItem( key, value );
+			}
+		} catch ( e ) {
+			// No storage: nothing to remember or forget.
+		}
+	}
+
+	// The signed-in visitor's own token, or '' (signed out, key refused, offline).
+	function fetchToken() {
+		if ( ! settings.identity || ! window.fetch ) {
+			return Promise.resolve( '' );
+		}
+		var body = new window.FormData();
+		body.append( 'nonce', settings.identity.nonce );
+
+		return window.fetch( settings.identity.url, { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: body } )
+			.then( function ( response ) {
+				return response.ok ? response.json() : null;
+			} )
+			.then( function ( answer ) {
+				return answer && answer.success && answer.data && 'string' === typeof answer.data.token ? answer.data.token : '';
+			} )
+			.catch( function () {
+				return '';
+			} );
+	}
+
+	// Ready the widget's identity before it loads. Without a token, a token left
+	// by an earlier signed-in visitor in this browser is forgotten, so nobody
+	// chats as someone else.
+	function prepareIdentity() {
+		if ( ! settings.identity ) {
+			return Promise.resolve();
+		}
+
+		return fetchToken().then( function ( token ) {
+			if ( token ) {
+				window.chattermateToken = token;
+				remember( IDENTIFIED_KEY, '1' );
+				// The widget asks again when the token runs out mid-chat.
+				window.chattermateConfig = window.chattermateConfig || {};
+				window.chattermateConfig.tokenProvider = fetchToken;
+				return;
+			}
+
+			try {
+				if ( window.localStorage.getItem( IDENTIFIED_KEY ) ) {
+					remember( 'ctid', null );
+					remember( IDENTIFIED_KEY, null );
+				}
+			} catch ( e ) {
+				// No storage: no stored token either.
+			}
+		} );
+	}
+
 	/* Loading ------------------------------------------------------------- */
 
 	function stopListening() {
 		LOAD_EVENTS.forEach( function ( name ) {
-			window.removeEventListener( name, loadWidget, { passive: true } );
+			window.removeEventListener( name, onFirstInteraction, { passive: true } );
 		} );
 	}
 
-	function loadWidget() {
-		if ( injected || ! settings.lazy ) {
-			return;
-		}
-		injected = true;
-		stopListening();
-
+	function injectScript() {
 		var script = document.createElement( 'script' );
 		script.src = settings.src;
 		script.async = true;
@@ -52,6 +113,24 @@
 			waiters = [];
 		};
 		document.body.appendChild( script );
+
+		// Whatever waited for the widget can start waiting for it now.
+		if ( waiters.length && ! polling ) {
+			startPolling();
+		}
+	}
+
+	function loadWidget() {
+		if ( injected || ! loadsWidget ) {
+			return;
+		}
+		injected = true;
+		stopListening();
+		prepareIdentity().then( injectScript );
+	}
+
+	function onFirstInteraction() {
+		loadWidget();
 	}
 
 	function widgetReady() {
@@ -59,7 +138,8 @@
 	}
 
 	// Runs fn( ChatterMate ) once the widget script has defined its API. One shared
-	// poll serves every caller, so repeated clicks never stack up.
+	// poll serves every caller, and it only runs once the widget is on its way: at
+	// once when the plugin enqueued it, else from injectScript().
 	function whenWidget( fn ) {
 		if ( widgetReady() ) {
 			fn( window.ChatterMate );
@@ -69,11 +149,14 @@
 			return;
 		}
 		waiters.push( fn );
-		if ( polling ) {
+		if ( polling || ( loadsWidget && ! injected ) ) {
 			return;
 		}
-		polling = true;
+		startPolling();
+	}
 
+	function startPolling() {
+		polling = true;
 		var started = Date.now();
 		( function check() {
 			if ( widgetReady() ) {
@@ -146,6 +229,13 @@
 
 	/* Page details -------------------------------------------------------- */
 
+	// Store API names are HTML-encoded (&amp;, &#8211;): read them as text.
+	function decode( html ) {
+		var area = document.createElement( 'textarea' );
+		area.innerHTML = String( html );
+		return area.value;
+	}
+
 	// The visitor's cart, read in their own browser from the WooCommerce Store API
 	// (never printed into the page, which a cache may serve to someone else).
 	function readCart() {
@@ -158,18 +248,18 @@
 				return response.ok ? response.json() : null;
 			} )
 			.then( function ( cart ) {
-				if ( ! cart || ! cart.totals ) {
-					return {};
+				if ( ! cart || ! cart.totals || ! cart.items_count ) {
+					return { cart_item_count: 0 };
 				}
 				var minor = parseInt( cart.totals.currency_minor_unit, 10 ) || 0;
 				var items = ( cart.items || [] ).map( function ( item ) {
-					return item.quantity + ' x ' + item.name;
+					return item.quantity + ' x ' + decode( item.name );
 				} ).join( '; ' );
 
 				return {
-					cart_item_count: cart.items_count || 0,
+					cart_item_count: cart.items_count,
 					cart_total: ( parseInt( cart.totals.total_price, 10 ) / Math.pow( 10, minor ) ).toFixed( minor ) + ' ' + cart.totals.currency_code,
-					cart_items: items.slice( 0, 500 ),
+					cart_items: items.slice( 0, 300 ),
 				};
 			} )
 			.catch( function () {
@@ -189,6 +279,7 @@
 
 	function shareContext( widget ) {
 		var page = settings.context || {};
+		var latest = 0;
 		if ( 'function' !== typeof widget.setContext ) {
 			return;
 		}
@@ -197,13 +288,19 @@
 		if ( ! settings.cartUrl || 'function' !== typeof widget.on ) {
 			return;
 		}
-		// Read when the visitor opens the chat, so the cart is current.
+		// Read when the visitor opens the chat, so the cart is current. Only the
+		// newest read is applied, whichever answers first.
 		widget.on( 'open', function () {
+			var ask = ++latest;
 			readCart().then( function ( cart ) {
-				widget.setContext( merge( page, cart ) );
+				if ( ask === latest ) {
+					widget.setContext( merge( page, cart ) );
+				}
 			} );
 		} );
 	}
+
+	/* Start --------------------------------------------------------------- */
 
 	if ( settings.context ) {
 		whenWidget( shareContext );
@@ -211,7 +308,9 @@
 
 	if ( settings.lazy ) {
 		LOAD_EVENTS.forEach( function ( name ) {
-			window.addEventListener( name, loadWidget, { passive: true } );
+			window.addEventListener( name, onFirstInteraction, { passive: true } );
 		} );
+	} else if ( settings.identity ) {
+		loadWidget();
 	}
 }() );

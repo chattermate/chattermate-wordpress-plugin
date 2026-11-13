@@ -181,7 +181,10 @@ function chattermate_refresh_connection() {
 
 	// Read on every page view, so kept as a small autoloaded flag rather than
 	// reading the transient there.
-	update_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, 'needs_token' === $result['status'] ? 1 : 0, true );
+	// An unreachable API says nothing about the widget: keep what was known.
+	if ( 'unreachable' !== $result['status'] ) {
+		update_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, 'needs_token' === $result['status'] ? 1 : 0, true );
+	}
 
 	return $result;
 }

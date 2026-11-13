@@ -18,7 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Longest text value sent; the widget caps the whole context at 4 KB.
-define( 'CHATTERMATE_CONTEXT_TEXT_MAX', 200 );
+// Non-Latin text counts up to 6 bytes a character there, hence the small cap.
+define( 'CHATTERMATE_CONTEXT_TEXT_MAX', 120 );
 
 /**
  * Facts about the current page.
@@ -99,7 +100,8 @@ function chattermate_page_title() {
 		return single_post_title( '', false );
 	}
 	if ( is_search() ) {
-		return get_search_query( false );
+		// What a visitor searched for is theirs, and the page may be cached: not sent.
+		return '';
 	}
 	if ( is_archive() ) {
 		return wp_strip_all_tags( get_the_archive_title() );

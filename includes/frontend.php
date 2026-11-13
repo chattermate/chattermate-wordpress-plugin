@@ -146,7 +146,7 @@ function chattermate_widget_globals( $options ) {
 		$js .= 'window.chattermateBaseUrl=' . wp_json_encode( chattermate_api_url( $options ) ) . ';';
 	}
 
-	return $js . chattermate_identity_js( $options );
+	return $js . chattermate_signed_out_js();
 }
 
 /**
@@ -160,6 +160,12 @@ function chattermate_helper_config( $options ) {
 		'src'  => chattermate_script_url( $options ),
 		'lazy' => 'interaction' === $options['load_timing'],
 	);
+
+	// A signed-in visitor's token is fetched first, so chat.js loads the widget.
+	$identity = chattermate_identity_config( $options );
+	if ( $identity ) {
+		$config['identity'] = $identity;
+	}
 
 	if ( $options['share_context'] ) {
 		$config['context'] = (object) chattermate_page_context();
@@ -209,6 +215,7 @@ function chattermate_is_page_view() {
  * Immediate: the hosted loader is enqueued in the footer, async.
  * On interaction: public/js/chat.js adds the hosted loader on the visitor's first
  * scroll, tap, mouse move or key press, which keeps it out of page-speed tests.
+ * Signed-in customers: chat.js fetches the visitor's token, then adds the loader.
  * Either way chat.js also opens the chat from Chat buttons and #chattermate links.
  */
 function chattermate_enqueue_widget() {
@@ -216,9 +223,8 @@ function chattermate_enqueue_widget() {
 		return;
 	}
 
-	$options    = chattermate_get_options();
-	$lazy       = 'interaction' === $options['load_timing'];
-	$helper_cfg = chattermate_helper_config( $options );
+	$options = chattermate_get_options();
+	$globals = chattermate_widget_globals( $options );
 
 	wp_enqueue_script(
 		'chattermate-chat',
@@ -231,12 +237,15 @@ function chattermate_enqueue_widget() {
 		)
 	);
 
-	if ( $lazy ) {
-		wp_add_inline_script( 'chattermate-chat', chattermate_widget_globals( $options ) . $helper_cfg, 'before' );
+	// chat.js loads the widget itself on first interaction, and for a signed-in
+	// visitor once their token is in. Otherwise the hosted script loads straight away.
+	$helper_loads = 'interaction' === $options['load_timing'] || chattermate_identity_for_visitor( $options );
+	if ( $helper_loads ) {
+		wp_add_inline_script( 'chattermate-chat', $globals . chattermate_helper_config( $options ), 'before' );
 		return;
 	}
 
-	wp_add_inline_script( 'chattermate-chat', $helper_cfg, 'before' );
+	wp_add_inline_script( 'chattermate-chat', chattermate_helper_config( $options ), 'before' );
 
 	// The hosted loader is versioned by ChatterMate, so no ?ver= is added.
 	wp_enqueue_script(
@@ -249,6 +258,6 @@ function chattermate_enqueue_widget() {
 			'strategy'  => 'async',
 		)
 	);
-	wp_add_inline_script( 'chattermate-widget', chattermate_widget_globals( $options ), 'before' );
+	wp_add_inline_script( 'chattermate-widget', $globals, 'before' );
 }
 add_action( 'wp_enqueue_scripts', 'chattermate_enqueue_widget' );
