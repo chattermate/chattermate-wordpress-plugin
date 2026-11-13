@@ -24,6 +24,8 @@ function chattermate_default_options() {
 		'hide_for_admins'   => false,
 		'hide_woo_checkout' => false,
 		'load_timing'       => 'immediate',
+		'share_context'     => true,
+		'identify_users'    => false,
 		'script_url'        => '',
 		'api_url'           => '',
 	);
@@ -187,6 +189,10 @@ function chattermate_sanitize_options( $input ) {
 
 	$timing               = isset( $input['load_timing'] ) ? sanitize_key( $input['load_timing'] ) : 'immediate';
 	$clean['load_timing'] = array_key_exists( $timing, chattermate_load_timings() ) ? $timing : 'immediate';
+
+	$clean['share_context']  = ! empty( $input['share_context'] );
+	$clean['identify_users'] = ! empty( $input['identify_users'] );
+	chattermate_save_api_key( $input );
 
 	if ( chattermate_can_edit_urls() ) {
 		$clean['script_url'] = chattermate_sanitize_url_override( isset( $input['script_url'] ) ? $input['script_url'] : '', CHATTERMATE_DEFAULT_SCRIPT_URL );

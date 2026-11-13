@@ -41,6 +41,8 @@ define( 'CHATTERMATE_PAGE', 'chattermate' );
 
 require_once CHATTERMATE_DIR . 'includes/options.php';
 require_once CHATTERMATE_DIR . 'includes/connection.php';
+require_once CHATTERMATE_DIR . 'includes/identity.php';
+require_once CHATTERMATE_DIR . 'includes/context.php';
 require_once CHATTERMATE_DIR . 'includes/frontend.php';
 require_once CHATTERMATE_DIR . 'includes/blocks.php';
 

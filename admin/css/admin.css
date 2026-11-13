@@ -570,6 +570,14 @@ body.toplevel_page_chattermate #wpbody-content {
 	margin-top: 2px;
 }
 
+.chattermate-indent {
+	margin-left: 28px;
+}
+
+.chattermate-indent[hidden] {
+	display: none;
+}
+
 .chattermate-check strong {
 	font-weight: 600;
 }

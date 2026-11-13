@@ -47,15 +47,17 @@ function chattermate_passes_rules( $options ) {
 		return false;
 	}
 
-	if ( 'only' === $options['visibility_mode'] ) {
-		return chattermate_request_matches_rules( $options );
+	if ( 'only' === $options['visibility_mode'] && ! chattermate_request_matches_rules( $options ) ) {
+		return false;
 	}
 
-	if ( 'except' === $options['visibility_mode'] ) {
-		return ! chattermate_request_matches_rules( $options );
+	if ( 'except' === $options['visibility_mode'] && chattermate_request_matches_rules( $options ) ) {
+		return false;
 	}
 
-	return true;
+	// Last, as it may ask ChatterMate for a token: a widget that only takes
+	// signed-in visitors stays off for everyone else.
+	return chattermate_visitor_can_use_widget( $options );
 }
 
 /**
@@ -144,7 +146,29 @@ function chattermate_widget_globals( $options ) {
 		$js .= 'window.chattermateBaseUrl=' . wp_json_encode( chattermate_api_url( $options ) ) . ';';
 	}
 
-	return $js;
+	return $js . chattermate_identity_js( $options );
+}
+
+/**
+ * Settings for public/js/chat.js.
+ *
+ * @param array $options Settings from chattermate_get_options().
+ * @return string JavaScript.
+ */
+function chattermate_helper_config( $options ) {
+	$config = array(
+		'src'  => chattermate_script_url( $options ),
+		'lazy' => 'interaction' === $options['load_timing'],
+	);
+
+	if ( $options['share_context'] ) {
+		$config['context'] = (object) chattermate_page_context();
+		if ( chattermate_woocommerce_active() ) {
+			$config['cartUrl'] = esc_url_raw( rest_url( 'wc/store/v1/cart' ) );
+		}
+	}
+
+	return 'window.chattermateWp=' . wp_json_encode( $config ) . ';';
 }
 
 /**
@@ -158,10 +182,25 @@ function chattermate_widget_globals( $options ) {
 function chattermate_widget_loads_here() {
 	static $loads = null;
 	if ( null === $loads ) {
-		$loads = ! is_admin() && chattermate_should_load_widget( chattermate_get_options() );
+		$loads = chattermate_is_page_view() && chattermate_should_load_widget( chattermate_get_options() );
 	}
 
 	return $loads;
+}
+
+/**
+ * Whether this request is a visitor viewing a page: not the admin, a feed, the
+ * REST API (content.rendered), AJAX or cron (newsletters built from posts).
+ *
+ * @return bool
+ */
+function chattermate_is_page_view() {
+	return ! is_admin()
+		&& ! is_feed()
+		&& ! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+		&& ! wp_is_json_request()
+		&& ! wp_doing_ajax()
+		&& ! wp_doing_cron();
 }
 
 /**
@@ -179,12 +218,7 @@ function chattermate_enqueue_widget() {
 
 	$options    = chattermate_get_options();
 	$lazy       = 'interaction' === $options['load_timing'];
-	$helper_cfg = 'window.chattermateWp=' . wp_json_encode(
-		array(
-			'src'  => chattermate_script_url( $options ),
-			'lazy' => $lazy,
-		)
-	) . ';';
+	$helper_cfg = chattermate_helper_config( $options );
 
 	wp_enqueue_script(
 		'chattermate-chat',

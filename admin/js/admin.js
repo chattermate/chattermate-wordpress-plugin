@@ -79,6 +79,10 @@
 			if ( button.getAttribute( 'data-api-url' ) ) {
 				window.chattermateBaseUrl = button.getAttribute( 'data-api-url' );
 			}
+			// With signed-in customers on, the preview chats as you.
+			if ( button.getAttribute( 'data-token' ) ) {
+				window.chattermateToken = button.getAttribute( 'data-token' );
+			}
 
 			var script = document.createElement( 'script' );
 			script.src = button.getAttribute( 'data-script-url' );
@@ -93,8 +97,21 @@
 		} );
 	}
 
+	function initIdentity() {
+		var toggle = document.querySelector( '[data-chattermate-identity]' );
+		var fields = document.querySelector( '[data-chattermate-identity-fields]' );
+		if ( ! toggle || ! fields ) {
+			return;
+		}
+
+		toggle.addEventListener( 'change', function () {
+			fields.hidden = ! toggle.checked;
+		} );
+	}
+
 	function init() {
 		initRules();
+		initIdentity();
 		initPageFilter();
 		initPreview();
 	}

@@ -15,13 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Register the Chat button block and the shortcode.
  */
 function chattermate_register_blocks() {
-	$block = register_block_type( CHATTERMATE_DIR . 'blocks/chat-button' );
-
-	if ( $block && ! empty( $block->editor_script_handles ) ) {
-		foreach ( $block->editor_script_handles as $handle ) {
-			wp_set_script_translations( $handle, 'chattermate-chat' );
-		}
-	}
+	// block.json's textdomain also sets up the editor script's translations.
+	register_block_type( CHATTERMATE_DIR . 'blocks/chat-button' );
 
 	add_shortcode( 'chattermate_button', 'chattermate_button_shortcode' );
 }
@@ -67,7 +62,7 @@ function chattermate_chat_button_html( $label, $message, $wrapper_attributes ) {
 	}
 
 	return sprintf(
-		'<button type="button" %1$s data-chattermate-open data-chattermate-message="%2$s">%3$s</button>',
+		'<button type="button" %1$s data-chattermate-open="1" data-chattermate-message="%2$s">%3$s</button>',
 		$wrapper_attributes,
 		esc_attr( trim( wp_strip_all_tags( (string) $message ) ) ),
 		$label

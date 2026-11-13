@@ -12,9 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Escaped inside chattermate_chat_button_html().
-echo chattermate_chat_button_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	isset( $attributes['label'] ) ? (string) $attributes['label'] : '',
-	isset( $attributes['message'] ) ? (string) $attributes['message'] : '',
-	get_block_wrapper_attributes( array( 'class' => 'wp-element-button chattermate-chat-button' ) )
+echo wp_kses_post(
+	chattermate_chat_button_html(
+		isset( $attributes['label'] ) ? (string) $attributes['label'] : '',
+		isset( $attributes['message'] ) ? (string) $attributes['message'] : '',
+		get_block_wrapper_attributes( array( 'class' => 'wp-element-button chattermate-chat-button' ) )
+	)
 );

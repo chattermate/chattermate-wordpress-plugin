@@ -166,6 +166,7 @@ function chattermate_refresh_connection() {
 	$options = chattermate_get_options();
 	if ( '' === $options['widget_id'] ) {
 		delete_transient( CHATTERMATE_CONNECTION_TRANSIENT );
+		delete_option( CHATTERMATE_REQUIRES_TOKEN_OPTION );
 		return null;
 	}
 
@@ -177,6 +178,10 @@ function chattermate_refresh_connection() {
 	$result['checked_at'] = time();
 
 	set_transient( CHATTERMATE_CONNECTION_TRANSIENT, $result, MONTH_IN_SECONDS );
+
+	// Read on every page view, so kept as a small autoloaded flag rather than
+	// reading the transient there.
+	update_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, 'needs_token' === $result['status'] ? 1 : 0, true );
 
 	return $result;
 }

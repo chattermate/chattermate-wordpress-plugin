@@ -45,6 +45,7 @@
 						tagName: 'span',
 						value: attributes.label,
 						allowedFormats: [],
+						disableLineBreaks: true,
 						withoutInteractiveFormatting: true,
 						placeholder: __( 'Chat with us', 'chattermate-chat' ),
 						'aria-label': __( 'Button text', 'chattermate-chat' ),

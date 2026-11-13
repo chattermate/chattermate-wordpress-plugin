@@ -58,12 +58,21 @@ function chattermate_connection_view( $options, $connection ) {
 				'detail' => __( "Copy it again from your agent's Widget tab in ChatterMate. Until then the chat can't answer visitors.", 'chattermate-chat' ),
 			);
 		case 'needs_token':
+			if ( chattermate_identity_ready( $options ) ) {
+				return array(
+					'tone'   => 'ok',
+					'pill'   => __( 'Connected', 'chattermate-chat' ),
+					/* translators: %s: name of the ChatterMate AI agent. */
+					'title'  => sprintf( __( 'Connected: %s, for signed-in visitors', 'chattermate-chat' ), '' !== $connection['agent_name'] ? $connection['agent_name'] : __( 'your agent', 'chattermate-chat' ) ),
+					'detail' => $when . ' ' . __( 'The agent only chats with visitors who are signed in, so visitors who are not signed in do not see the chat.', 'chattermate-chat' ),
+				);
+			}
 			return array(
 				'tone'   => 'error',
 				'pill'   => __( 'Needs attention', 'chattermate-chat' ),
 				/* translators: %s: name of the ChatterMate AI agent. */
 				'title'  => sprintf( __( '%s only chats with signed-in visitors', 'chattermate-chat' ), '' !== $connection['agent_name'] ? $connection['agent_name'] : __( 'This agent', 'chattermate-chat' ) ),
-				'detail' => __( 'The agent requires a signed token, which this plugin does not send. Turn off "Require token" for the agent in ChatterMate, then click Check again.', 'chattermate-chat' ),
+				'detail' => __( 'Turn on "Recognise signed-in customers" below and add an API key, or turn off "Require token" for the agent in ChatterMate, then click Check again.', 'chattermate-chat' ),
 			);
 		case 'no_agent':
 			return array(
@@ -94,7 +103,15 @@ function chattermate_can_preview( $options, $connection ) {
 		return false;
 	}
 
-	return null === $connection || ! in_array( $connection['status'], array( 'not_found', 'no_agent', 'needs_token' ), true );
+	if ( null === $connection ) {
+		return true;
+	}
+	if ( 'needs_token' === $connection['status'] ) {
+		// The preview chats as the signed-in administrator when that can work.
+		return chattermate_identity_ready( $options );
+	}
+
+	return ! in_array( $connection['status'], array( 'not_found', 'no_agent' ), true );
 }
 
 /**
@@ -138,6 +155,7 @@ function chattermate_render_admin_page() {
 					<?php settings_fields( 'chattermate_settings' ); ?>
 					<?php chattermate_render_connect_card( $options, $view ); ?>
 					<?php chattermate_render_visibility_card( $options ); ?>
+					<?php chattermate_render_personal_card( $options ); ?>
 					<?php chattermate_render_advanced_card( $options ); ?>
 					<div class="chattermate-actions">
 						<button type="submit" class="chattermate-button chattermate-button--primary"><?php esc_html_e( 'Save changes', 'chattermate-chat' ); ?></button>
@@ -354,6 +372,61 @@ function chattermate_render_page_rules( $options ) {
 }
 
 /**
+ * "Personal answers" card: page details for the AI and signed-in customers.
+ *
+ * @param array $options Settings.
+ */
+function chattermate_render_personal_card( $options ) {
+	$name     = CHATTERMATE_OPTION;
+	$has_key  = '' !== chattermate_api_key();
+	$apps_url = chattermate_app_url( $options ) . '/settings/widget-apps';
+	?>
+	<section class="chattermate-card" aria-labelledby="chattermate-personal-title">
+		<h2 id="chattermate-personal-title"><?php esc_html_e( 'Personal answers', 'chattermate-chat' ); ?></h2>
+
+		<label class="chattermate-check">
+			<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[share_context]" value="1" <?php checked( $options['share_context'] ); ?>>
+			<span><strong><?php esc_html_e( 'Tell the AI what the visitor is looking at', 'chattermate-chat' ); ?></strong><br>
+			<span class="chattermate-muted">
+				<?php
+				if ( chattermate_woocommerce_active() ) {
+					esc_html_e( 'The page they are on and, on product pages, the product, price and stock. When they open the chat, what is in their cart.', 'chattermate-chat' );
+				} else {
+					esc_html_e( 'The kind of page they are on and its title.', 'chattermate-chat' );
+				}
+				?>
+			</span></span>
+		</label>
+
+		<hr class="chattermate-divider">
+
+		<label class="chattermate-check">
+			<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[identify_users]" value="1" data-chattermate-identity <?php checked( $options['identify_users'] ); ?>>
+			<span><strong><?php esc_html_e( 'Recognise signed-in customers', 'chattermate-chat' ); ?></strong><br>
+			<span class="chattermate-muted"><?php esc_html_e( 'Visitors who are logged in to this site chat under their name and email, so your team knows who they are and they keep their conversations on any device. Their name and email are sent to ChatterMate.', 'chattermate-chat' ); ?></span></span>
+		</label>
+
+		<div class="chattermate-field chattermate-indent" data-chattermate-identity-fields<?php echo $options['identify_users'] ? '' : ' hidden'; ?>>
+			<label for="chattermate-api-key"><?php esc_html_e( 'Widget app API key', 'chattermate-chat' ); ?></label>
+			<input type="password" id="chattermate-api-key" class="chattermate-input chattermate-input--mono" name="<?php echo esc_attr( $name ); ?>[api_key]" value="" autocomplete="new-password" spellcheck="false" placeholder="<?php echo $has_key ? esc_attr__( 'Saved. Paste a new key to replace it.', 'chattermate-chat' ) : esc_attr__( 'Paste the API key', 'chattermate-chat' ); ?>">
+			<p class="chattermate-muted">
+				<?php esc_html_e( 'Create one in ChatterMate under Settings, then Widget Apps. It stays on your server; visitors only ever get their own short-lived token.', 'chattermate-chat' ); ?>
+				<a href="<?php echo esc_url( $apps_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open Widget Apps', 'chattermate-chat' ); ?> <span aria-hidden="true">&#8599;</span></a>
+			</p>
+			<?php if ( $has_key ) : ?>
+				<label class="chattermate-check">
+					<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[api_key_remove]" value="1">
+					<span><?php esc_html_e( 'Remove the saved key', 'chattermate-chat' ); ?></span>
+				</label>
+			<?php elseif ( $options['identify_users'] ) : ?>
+				<p class="chattermate-muted"><strong><?php esc_html_e( 'Add a key to turn this on.', 'chattermate-chat' ); ?></strong></p>
+			<?php endif; ?>
+		</div>
+	</section>
+	<?php
+}
+
+/**
  * Published pages for the picker, by title: the first 500, plus every page
  * already chosen so a saved choice never drops off the list.
  *
@@ -430,6 +503,7 @@ function chattermate_render_preview_card( $options, $connection ) {
 				data-widget-id="<?php echo esc_attr( $options['widget_id'] ); ?>"
 				data-script-url="<?php echo esc_url( chattermate_script_url( $options ) ); ?>"
 				data-api-url="<?php echo esc_url( '' !== $options['api_url'] ? chattermate_api_url( $options ) : '' ); ?>"
+				data-token="<?php echo esc_attr( chattermate_visitor_token( $options ) ); ?>"
 				data-loaded-text="<?php esc_attr_e( 'The chat is loading at the bottom right of this page.', 'chattermate-chat' ); ?>"
 				data-open-text="<?php esc_attr_e( 'Open the chat', 'chattermate-chat' ); ?>"><?php esc_html_e( 'Show live preview', 'chattermate-chat' ); ?></button>
 		<?php elseif ( '' === $options['widget_id'] ) : ?>
