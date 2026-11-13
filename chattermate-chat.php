@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ChatterMate Chat
- * Plugin URI:        https://chattermate.chat
+ * Plugin URI:        https://github.com/chattermate/chattermate-wordpress-plugin
  * Description:       AI customer support on your WordPress site. ChatterMate answers from your own content, hands over to your team, and turns hard questions into tickets.
  * Version:           1.1.0
  * Requires at least: 6.3
