@@ -55,8 +55,7 @@ function chattermate_passes_rules( $options ) {
 		return false;
 	}
 
-	// Last, as it may ask ChatterMate for a token: a widget that only takes
-	// signed-in visitors stays off for everyone else.
+	// A widget that only takes signed-in visitors stays off for everyone else.
 	return chattermate_visitor_can_use_widget( $options );
 }
 

@@ -24,10 +24,16 @@ define( 'CHATTERMATE_VERSION', '1.1.0' );
 define( 'CHATTERMATE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CHATTERMATE_URL', plugin_dir_url( __FILE__ ) );
 
-// Stored data. uninstall.php removes every one of these.
+// Stored data, every name in one place. uninstall.php removes each of them.
 define( 'CHATTERMATE_OPTION', 'chattermate_options' );
 define( 'CHATTERMATE_SETUP_FLAG', 'chattermate_setup_pending' );
 define( 'CHATTERMATE_CONNECTION_TRANSIENT', 'chattermate_connection' );
+define( 'CHATTERMATE_API_KEY_OPTION', 'chattermate_api_key' );
+define( 'CHATTERMATE_REQUIRES_TOKEN_OPTION', 'chattermate_requires_token' );
+define( 'CHATTERMATE_CONNECT_STATES_OPTION', 'chattermate_connect_states' );
+define( 'CHATTERMATE_KEY_REJECTED_TRANSIENT', 'chattermate_key_rejected' );
+// Per site: stored with update_user_option(), so it carries the site's table prefix.
+define( 'CHATTERMATE_TOKEN_META', 'chattermate_token' );
 
 // Hosted ChatterMate defaults. Self-hosters override the script and API URLs under Advanced.
 define( 'CHATTERMATE_DEFAULT_SCRIPT_URL', 'https://app.chattermate.chat/webclient/chattermate.min.js' );
@@ -70,6 +76,26 @@ function chattermate_activate( $network_wide = false ) {
 	}
 }
 register_activation_hook( __FILE__, 'chattermate_activate' );
+
+/**
+ * A site added to a network where the plugin is network-active starts set up
+ * like the others.
+ *
+ * @param WP_Site $site The new site.
+ */
+function chattermate_new_network_site( $site ) {
+	if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	if ( ! is_plugin_active_for_network( plugin_basename( __FILE__ ) ) ) {
+		return;
+	}
+
+	switch_to_blog( $site->blog_id );
+	chattermate_flag_setup();
+	restore_current_blog();
+}
+add_action( 'wp_initialize_site', 'chattermate_new_network_site', 20 );
 
 /**
  * Raise the setup notice on the current site while it has no Widget ID.

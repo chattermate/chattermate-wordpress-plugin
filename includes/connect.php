@@ -19,8 +19,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CHATTERMATE_CONNECT_STATES_OPTION', 'chattermate_connect_states' );
 define( 'CHATTERMATE_CONNECT_STATE_TTL', HOUR_IN_SECONDS );
+
+/**
+ * Whether one-click connect is offered: on ChatterMate cloud. A self-hosted app
+ * may predate the connect page, so self-hosters paste the Widget ID.
+ *
+ * @param array $options Settings from chattermate_get_options().
+ * @return bool
+ */
+function chattermate_connect_available( $options ) {
+	return '' === $options['script_url'];
+}
 
 /**
  * The "Connect with ChatterMate" link: starts a connection when clicked.
@@ -41,6 +51,10 @@ function chattermate_handle_connect_start() {
 	check_admin_referer( 'chattermate_connect_start' );
 
 	$options = chattermate_get_options();
+	if ( ! chattermate_connect_available( $options ) ) {
+		wp_safe_redirect( chattermate_admin_page_url() );
+		exit;
+	}
 	$app     = wp_parse_url( chattermate_app_url( $options ), PHP_URL_HOST );
 	add_filter(
 		'allowed_redirect_hosts',

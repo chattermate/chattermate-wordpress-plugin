@@ -56,7 +56,8 @@ function chattermate_redirect_old_settings_page() {
 		exit;
 	}
 }
-add_action( 'admin_init', 'chattermate_redirect_old_settings_page' );
+// WordPress refuses an unknown settings page before admin_init runs, so catch it there.
+add_action( 'admin_page_access_denied', 'chattermate_redirect_old_settings_page' );
 
 /**
  * Register the setting with its sanitize callback.
@@ -74,6 +75,17 @@ function chattermate_register_settings() {
 	);
 }
 add_action( 'admin_init', 'chattermate_register_settings' );
+
+/**
+ * Sites upgraded from 1.0.0 lack the autoloaded flag the front end reads; a
+ * missing option costs a database query on every page view.
+ */
+function chattermate_ensure_flags() {
+	if ( null === get_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, null ) ) {
+		add_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, 0, '', true );
+	}
+}
+add_action( 'admin_init', 'chattermate_ensure_flags' );
 
 /**
  * Load the screen's CSS and JS on the ChatterMate screen only.

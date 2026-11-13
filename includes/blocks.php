@@ -55,16 +55,16 @@ function chattermate_chat_button_html( $label, $message, $wrapper_attributes ) {
 		return '';
 	}
 
-	// Entities from the editor stay as they are; tags are removed.
-	$label = trim( wp_kses( (string) $label, array() ) );
+	// The editor stores entities (&amp;): read them as text, then escape once.
+	$label = trim( html_entity_decode( wp_strip_all_tags( (string) $label ), ENT_QUOTES, 'UTF-8' ) );
 	if ( '' === $label ) {
-		$label = esc_html__( 'Chat with us', 'chattermate-chat' );
+		$label = __( 'Chat with us', 'chattermate-chat' );
 	}
 
 	return sprintf(
 		'<button type="button" %1$s data-chattermate-open="1" data-chattermate-message="%2$s">%3$s</button>',
 		$wrapper_attributes,
 		esc_attr( trim( wp_strip_all_tags( (string) $message ) ) ),
-		$label
+		esc_html( $label )
 	);
 }

@@ -171,7 +171,12 @@ function chattermate_refresh_connection() {
 	}
 
 	$api_url = chattermate_api_url( $options );
-	$result  = chattermate_request_widget_status( $options['widget_id'], $api_url );
+	$result  = chattermate_api_known( $options )
+		? chattermate_request_widget_status( $options['widget_id'], $api_url )
+		: array(
+			'status'     => 'needs_api_url',
+			'agent_name' => '',
+		);
 
 	$result['widget_id']  = $options['widget_id'];
 	$result['api_url']    = $api_url;
@@ -181,8 +186,8 @@ function chattermate_refresh_connection() {
 
 	// Read on every page view, so kept as a small autoloaded flag rather than
 	// reading the transient there.
-	// An unreachable API says nothing about the widget: keep what was known.
-	if ( 'unreachable' !== $result['status'] ) {
+	// An unreachable or unknown API says nothing about the widget: keep what was known.
+	if ( ! in_array( $result['status'], array( 'unreachable', 'needs_api_url' ), true ) ) {
 		update_option( CHATTERMATE_REQUIRES_TOKEN_OPTION, 'needs_token' === $result['status'] ? 1 : 0, true );
 	}
 

@@ -128,6 +128,18 @@ function chattermate_api_url( $options ) {
 }
 
 /**
+ * Whether the plugin knows which API to call. A self-hosted script URL with no
+ * API URL (as 1.0.0 stored it) would otherwise send checks and tokens to
+ * ChatterMate cloud, which doesn't know a self-hosted widget.
+ *
+ * @param array $options Settings from chattermate_get_options().
+ * @return bool
+ */
+function chattermate_api_known( $options ) {
+	return '' === $options['script_url'] || '' !== $options['api_url'];
+}
+
+/**
  * The ChatterMate app origin: the self-hosted loader's origin, else the hosted app.
  *
  * @param array $options Settings from chattermate_get_options().

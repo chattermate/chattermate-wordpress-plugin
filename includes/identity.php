@@ -16,13 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CHATTERMATE_API_KEY_OPTION', 'chattermate_api_key' );
-define( 'CHATTERMATE_REQUIRES_TOKEN_OPTION', 'chattermate_requires_token' );
-// Per site: stored with update_user_option(), so it carries the site's table prefix.
-define( 'CHATTERMATE_TOKEN_META', 'chattermate_token' );
-// Set for an hour when ChatterMate refuses the key, so no user retries meanwhile.
-define( 'CHATTERMATE_KEY_REJECTED_TRANSIENT', 'chattermate_key_rejected' );
-
 // Tokens live a day and are renewed once less than half of that remains, so a
 // tab left open never runs out mid-chat.
 define( 'CHATTERMATE_TOKEN_TTL', DAY_IN_SECONDS );
@@ -46,7 +39,7 @@ function chattermate_api_key() {
  * @return bool
  */
 function chattermate_identity_ready( $options ) {
-	return $options['identify_users'] && '' !== chattermate_api_key();
+	return $options['identify_users'] && chattermate_api_known( $options ) && '' !== chattermate_api_key();
 }
 
 /**
@@ -56,7 +49,21 @@ function chattermate_identity_ready( $options ) {
  * @return bool
  */
 function chattermate_identity_for_visitor( $options ) {
-	return chattermate_identity_ready( $options ) && is_user_logged_in() && ! get_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT );
+	if ( ! chattermate_identity_ready( $options ) || ! is_user_logged_in() || get_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT ) ) {
+		return false;
+	}
+
+	/**
+	 * Filters whether this signed-in user chats under their WordPress email.
+	 *
+	 * ChatterMate trusts the email the site sends. If your site lets people
+	 * register or change their email without confirming it, limit this to users
+	 * whose address you have verified.
+	 *
+	 * @param bool    $identify Whether to identify the user. Default true.
+	 * @param WP_User $user     The signed-in user.
+	 */
+	return (bool) apply_filters( 'chattermate_identify_user', true, wp_get_current_user() );
 }
 
 /**
@@ -89,7 +96,7 @@ function chattermate_save_api_key( $input ) {
  * @param array $options Settings from chattermate_get_options().
  * @return string
  */
-function chattermate_current_user_token( $options ) {
+function chattermate_current_user_token( $options, $force = false ) {
 	if ( ! chattermate_identity_for_visitor( $options ) || get_transient( CHATTERMATE_KEY_REJECTED_TRANSIENT ) ) {
 		return '';
 	}
@@ -102,7 +109,10 @@ function chattermate_current_user_token( $options ) {
 	$owner  = chattermate_token_owner( $options, $user );
 	$cached = get_user_option( CHATTERMATE_TOKEN_META, $user->ID );
 	if ( is_array( $cached ) && isset( $cached['owner'], $cached['token'], $cached['expires'], $cached['retry_after'] ) && $cached['owner'] === $owner ) {
-		if ( '' !== $cached['token'] && $cached['expires'] > time() + CHATTERMATE_TOKEN_RENEW ) {
+		// The widget asks for a new token when ChatterMate refused the cached one:
+		// skip the cache then, but at most once a minute per user.
+		$forced_recently = isset( $cached['issued'] ) && $cached['issued'] > time() - MINUTE_IN_SECONDS;
+		if ( '' !== $cached['token'] && ( ! $force || $forced_recently ) && $cached['expires'] > time() + CHATTERMATE_TOKEN_RENEW ) {
 			return $cached['token'];
 		}
 		if ( '' === $cached['token'] && $cached['retry_after'] > time() ) {
@@ -119,10 +129,22 @@ function chattermate_current_user_token( $options ) {
 			'token'       => $issued['token'],
 			'expires'     => $issued['expires'],
 			'retry_after' => '' === $issued['token'] ? time() + CHATTERMATE_TOKEN_RETRY : 0,
+			'issued'      => time(),
 		)
 	);
 
 	return $issued['token'];
+}
+
+/**
+ * When the current user's cached token runs out, or 0.
+ *
+ * @return int Unix time.
+ */
+function chattermate_current_user_token_expiry() {
+	$cached = get_user_option( CHATTERMATE_TOKEN_META, get_current_user_id() );
+
+	return is_array( $cached ) && isset( $cached['expires'] ) ? (int) $cached['expires'] : 0;
 }
 
 /**
@@ -221,15 +243,17 @@ function chattermate_ajax_token() {
 	// Each answer carries the nonce for the next request, so a tab left open
 	// long enough for the page's nonce to lapse can still renew its token.
 	$next  = wp_create_nonce( 'chattermate_token' );
-	$token = chattermate_current_user_token( chattermate_get_options() );
+	$force = ! empty( $_POST['renew'] );
+	$token = chattermate_current_user_token( chattermate_get_options(), $force );
 	if ( '' === $token ) {
 		wp_send_json_error( array( 'nonce' => $next ), 503 );
 	}
 
 	wp_send_json_success(
 		array(
-			'token' => $token,
-			'nonce' => $next,
+			'token'   => $token,
+			'nonce'   => $next,
+			'expires' => chattermate_current_user_token_expiry(),
 		)
 	);
 }
@@ -249,6 +273,8 @@ function chattermate_identity_config( $options ) {
 	return array(
 		'url'   => esc_url_raw( admin_url( 'admin-ajax.php?action=chattermate_token' ) ),
 		'nonce' => wp_create_nonce( 'chattermate_token' ),
+		// Who the browser may keep a token for between pages (sessionStorage).
+		'user'  => substr( wp_hash( 'chattermate-token|' . get_current_user_id() . '|' . chattermate_get_options()['widget_id'] ), 0, 16 ),
 	);
 }
 
@@ -266,7 +292,7 @@ function chattermate_signed_out_js( $options ) {
 		return '';
 	}
 
-	return 'try{if(localStorage.getItem("chattermate_wp_identified")){localStorage.removeItem("ctid");localStorage.removeItem("chattermate_wp_identified")}}catch(e){}';
+	return 'try{sessionStorage.removeItem("chattermate_wp_token");if(localStorage.getItem("chattermate_wp_identified")){localStorage.removeItem("ctid");localStorage.removeItem("chattermate_wp_identified")}}catch(e){}';
 }
 
 /**

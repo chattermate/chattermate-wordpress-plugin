@@ -46,13 +46,54 @@
 		}
 	}
 
+	var SESSION_KEY = 'chattermate_wp_token';
+	// A kept token is reused between pages while it has this long left.
+	var KEEP_MS = 60 * 60 * 1000;
+
+	// The token kept for this user in this tab's session, so not every page view
+	// asks the server again. Dropped as soon as the user or widget differs.
+	function keptToken() {
+		try {
+			var kept = JSON.parse( window.sessionStorage.getItem( SESSION_KEY ) || 'null' );
+			if ( kept && kept.user === settings.identity.user && kept.expires * 1000 - Date.now() > KEEP_MS ) {
+				return kept.token;
+			}
+		} catch ( e ) {
+			// No storage or a damaged entry: ask the server.
+		}
+		return '';
+	}
+
+	function keepToken( token, expires ) {
+		try {
+			if ( token && expires ) {
+				window.sessionStorage.setItem( SESSION_KEY, JSON.stringify( { user: settings.identity.user, token: token, expires: expires } ) );
+			} else {
+				window.sessionStorage.removeItem( SESSION_KEY );
+			}
+		} catch ( e ) {
+			// No storage: the server is asked on each page.
+		}
+	}
+
 	// The signed-in visitor's own token, or '' (signed out, key refused, offline).
-	function fetchToken() {
+	// renew asks the server for a new one rather than the cached one, for when
+	// ChatterMate refused the token the widget had.
+	function fetchToken( renew ) {
 		if ( ! settings.identity || ! window.fetch ) {
 			return Promise.resolve( '' );
 		}
+		if ( ! renew ) {
+			var kept = keptToken();
+			if ( kept ) {
+				return Promise.resolve( kept );
+			}
+		}
 		var body = new window.FormData();
 		body.append( 'nonce', settings.identity.nonce );
+		if ( renew ) {
+			body.append( 'renew', '1' );
+		}
 
 		return window.fetch( settings.identity.url, { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: body } )
 			.then( function ( response ) {
@@ -66,7 +107,9 @@
 				if ( answer && answer.data && 'string' === typeof answer.data.nonce ) {
 					settings.identity.nonce = answer.data.nonce;
 				}
-				return answer && answer.success && answer.data && 'string' === typeof answer.data.token ? answer.data.token : '';
+				var token = answer && answer.success && answer.data && 'string' === typeof answer.data.token ? answer.data.token : '';
+				keepToken( token, token && answer.data.expires );
+				return token;
 			} )
 			.catch( function () {
 				return '';
@@ -87,7 +130,9 @@
 				remember( IDENTIFIED_KEY, '1' );
 				// The widget asks again when the token runs out mid-chat.
 				window.chattermateConfig = window.chattermateConfig || {};
-				window.chattermateConfig.tokenProvider = fetchToken;
+				window.chattermateConfig.tokenProvider = function () {
+					return fetchToken( true );
+				};
 				return;
 			}
 

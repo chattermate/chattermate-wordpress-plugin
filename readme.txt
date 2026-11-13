@@ -47,22 +47,23 @@ This plugin connects to ChatterMate, a hosted customer-support service run by Ch
 
 **2. The connection check, in your WordPress admin only**
 
-* What: a request to `https://api.chattermate.chat/api/v1/widgets/{your Widget ID}/status`. It only reads; it starts no chat.
-* When: only when the ChatterMate settings are saved or an administrator clicks "Check again". Never on visitor page views.
+* What: a request to `https://api.chattermate.chat/api/v1/widgets/{your Widget ID}/status`, which only reads. (Against a ChatterMate API older than that endpoint, the plugin asks `/widgets/{your Widget ID}` instead, which also starts an anonymous chat visitor.)
+* When: only when the ChatterMate settings are saved (including after one-click connect) or an administrator clicks "Check again". Never on visitor page views.
 * What is sent: your Widget ID, plus standard request details from your server (its IP address and a `ChatterMate-WordPress/<version>` user agent).
 * Why: to confirm the widget exists and show the name of the AI agent that answers.
 
 **3. Signed-in customers, only if you turn it on**
 
 * What: a request from your server to `https://api.chattermate.chat/api/v1/generate-token`.
-* When: when a visitor who is logged in to your site loads a page with the chat, at most about twice a day per user (a failed attempt is retried after 10 minutes, and not at all for an hour if ChatterMate refuses the key). Also when an administrator clicks "Show live preview".
+* When: when a visitor who is logged in to your site loads a page with the chat, at most about twice a day per user (a failed attempt is retried after 10 minutes, and not at all for an hour if ChatterMate refuses the key), or when the widget reports that its token was refused (at most once a minute). Also when an administrator clicks "Show live preview".
 * What is sent: your Widget app API key, your Widget ID, and the logged-in user's email address and name.
-* Why: so the visitor chats under their own name and your team sees who they are. The API key stays on your server; the visitor's browser only receives their own short-lived token, which is never written into the page. A browser that signs out forgets it (`localStorage` key `chattermate_wp_identified`).
+* Why: so the visitor chats under their own name and your team sees who they are. The API key stays on your server; the visitor's browser only receives their own short-lived token, which is never written into the page, and keeps it for the browser tab (`sessionStorage` key `chattermate_wp_token`). A browser that signs out forgets it (`localStorage` key `chattermate_wp_identified`).
+* ChatterMate trusts the email your site sends. Turn this on only if your site confirms email addresses; developers can limit it with the `chattermate_identify_user` filter.
 
 **4. The live preview and one-click connect, in your WordPress admin only**
 
 * The live preview loads the same widget as in 1 on the ChatterMate settings screen, only when an administrator clicks "Show live preview".
-* "Connect with ChatterMate" opens `https://app.chattermate.chat/connect/wordpress` in the administrator's browser with your site's name and the address to return to. ChatterMate sends the administrator back with the chosen Widget ID. Nothing is sent from your server.
+* "Connect with ChatterMate" opens `https://app.chattermate.chat/connect/wordpress` in the administrator's browser with your site's name and address, the wp-admin address to return to and a one-time code. ChatterMate sends the administrator back with the chosen Widget ID. Nothing is sent from your server. (Offered on ChatterMate cloud; self-hosters paste the Widget ID.)
 
 If you self-host ChatterMate and set your own URLs under Advanced, all of this goes to your own servers instead.
 
@@ -126,7 +127,7 @@ The chat disappears from your site. Deleting the plugin also removes its setting
 
 = I self-host ChatterMate. Can I use this plugin? =
 
-Yes. Under **Advanced**, set the widget script URL (your app URL followed by `/webclient/chattermate.min.js`) and your API URL (ending in `/api/v1`). WordPress only lets the plugin reach public addresses, so an API on a private network address needs the `http_request_host_is_external` filter.
+Yes. Under **Advanced**, set the widget script URL (your app URL followed by `/webclient/chattermate.min.js`) and your API URL (ending in `/api/v1`); until the API URL is set, the plugin makes no calls to ChatterMate cloud for a self-hosted widget. WordPress only lets the plugin reach public addresses, so an API on a private network address needs the `http_request_host_is_external` filter.
 
 == Screenshots ==
 
