@@ -42,6 +42,7 @@ define( 'CHATTERMATE_PAGE', 'chattermate' );
 require_once CHATTERMATE_DIR . 'includes/options.php';
 require_once CHATTERMATE_DIR . 'includes/connection.php';
 require_once CHATTERMATE_DIR . 'includes/frontend.php';
+require_once CHATTERMATE_DIR . 'includes/blocks.php';
 
 if ( is_admin() ) {
 	require_once CHATTERMATE_DIR . 'includes/admin-page.php';

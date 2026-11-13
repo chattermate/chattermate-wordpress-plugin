@@ -148,47 +148,73 @@ function chattermate_widget_globals( $options ) {
 }
 
 /**
+ * Whether the widget loads on this request, decided once per request.
+ *
+ * Shared by the enqueue below and the Chat button, so a button never shows on a
+ * page where the chat itself is hidden.
+ *
+ * @return bool
+ */
+function chattermate_widget_loads_here() {
+	static $loads = null;
+	if ( null === $loads ) {
+		$loads = ! is_admin() && chattermate_should_load_widget( chattermate_get_options() );
+	}
+
+	return $loads;
+}
+
+/**
  * Load the widget on the front end.
  *
  * Immediate: the hosted loader is enqueued in the footer, async.
- * On interaction: a small local script adds the hosted loader on the visitor's
- * first scroll, tap, mouse move or key press, which keeps it out of page-speed tests.
+ * On interaction: public/js/chat.js adds the hosted loader on the visitor's first
+ * scroll, tap, mouse move or key press, which keeps it out of page-speed tests.
+ * Either way chat.js also opens the chat from Chat buttons and #chattermate links.
  */
 function chattermate_enqueue_widget() {
-	$options = chattermate_get_options();
-	if ( ! chattermate_should_load_widget( $options ) ) {
+	if ( ! chattermate_widget_loads_here() ) {
 		return;
 	}
 
-	$script_url = chattermate_script_url( $options );
+	$options    = chattermate_get_options();
+	$lazy       = 'interaction' === $options['load_timing'];
+	$helper_cfg = 'window.chattermateWp=' . wp_json_encode(
+		array(
+			'src'  => chattermate_script_url( $options ),
+			'lazy' => $lazy,
+		)
+	) . ';';
 
-	if ( 'interaction' === $options['load_timing'] ) {
-		wp_enqueue_script(
-			'chattermate-widget',
-			CHATTERMATE_URL . 'public/js/delayed-loader.js',
-			array(),
-			CHATTERMATE_VERSION,
-			array(
-				'in_footer' => true,
-				'strategy'  => 'defer',
-			)
-		);
-		$globals = chattermate_widget_globals( $options ) . 'window.chattermateWpLoader=' . wp_json_encode( array( 'src' => $script_url ) ) . ';';
-	} else {
-		// The hosted loader is versioned by ChatterMate, so no ?ver= is added.
-		wp_enqueue_script(
-			'chattermate-widget',
-			$script_url,
-			array(),
-			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- remote script, versioned by the service.
-			array(
-				'in_footer' => true,
-				'strategy'  => 'async',
-			)
-		);
-		$globals = chattermate_widget_globals( $options );
+	wp_enqueue_script(
+		'chattermate-chat',
+		CHATTERMATE_URL . 'public/js/chat.js',
+		array(),
+		CHATTERMATE_VERSION,
+		array(
+			'in_footer' => true,
+			'strategy'  => 'defer',
+		)
+	);
+
+	if ( $lazy ) {
+		wp_add_inline_script( 'chattermate-chat', chattermate_widget_globals( $options ) . $helper_cfg, 'before' );
+		return;
 	}
 
-	wp_add_inline_script( 'chattermate-widget', $globals, 'before' );
+	wp_add_inline_script( 'chattermate-chat', $helper_cfg, 'before' );
+
+	// The hosted loader is versioned by ChatterMate, so no ?ver= is added.
+	wp_enqueue_script(
+		'chattermate-widget',
+		chattermate_script_url( $options ),
+		array(),
+		null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- remote script, versioned by the service.
+		array(
+			'in_footer' => true,
+			'strategy'  => 'async',
+		)
+	);
+	wp_add_inline_script( 'chattermate-widget', chattermate_widget_globals( $options ), 'before' );
 }
 add_action( 'wp_enqueue_scripts', 'chattermate_enqueue_widget' );
