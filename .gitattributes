@@ -1,0 +1,6 @@
+# Left out of the release zip (bin/build-zip.sh): listing art, repo files, tooling.
+/assets export-ignore
+/bin export-ignore
+/README.md export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
