@@ -188,9 +188,10 @@ function chattermate_handle_connect_return() {
 	}
 	$learning = chattermate_claim_site( $token );
 	$outcomes = array(
-		'queued'       => 'learning',
-		'source_limit' => 'learning_limit',
-		'failed'       => 'learning_failed',
+		'queued'           => 'learning',
+		'source_limit'     => 'learning_limit',
+		'failed'           => 'learning_failed',
+		'linked_elsewhere' => 'learning_elsewhere',
 	);
 	chattermate_connect_redirect( isset( $outcomes[ $learning ] ) ? $outcomes[ $learning ] : 'connected' );
 }
@@ -225,6 +226,7 @@ function chattermate_connect_messages() {
 		'learning'        => array( 'success', __( 'Connected. The chat is live, and ChatterMate is learning your pages and products now. It keeps up as you edit them.', 'chattermate-chat' ) ),
 		'learning_limit'  => array( 'warning', __( 'Connected and the chat is live, but your ChatterMate plan has no room for another knowledge source. Remove one in ChatterMate, then connect again to teach it this site.', 'chattermate-chat' ) ),
 		'learning_failed' => array( 'warning', __( "Connected and the chat is live, but ChatterMate couldn't be reached to learn this site. Connect again in a minute.", 'chattermate-chat' ) ),
+		'learning_elsewhere' => array( 'warning', __( 'Connected and the chat is live, but this agent already learns another site. Disconnect that site in ChatterMate, then connect again to teach it this one.', 'chattermate-chat' ) ),
 		'saved'           => array( 'warning', __( 'Your Widget ID is saved, but the check below needs attention.', 'chattermate-chat' ) ),
 		'cancelled'       => array( 'info', __( 'Connection cancelled. Nothing was changed.', 'chattermate-chat' ) ),
 		'expired'         => array( 'warning', __( 'That connection link has expired or was already used. Click Connect with ChatterMate again.', 'chattermate-chat' ) ),

@@ -6,8 +6,9 @@
  * POST /wp-json/chattermate/v1/orders/lookup {order_number, email}, signed by
  * ChatterMate with the site link's secret (site-link.php). The order comes back
  * only when the number and the billing email both match; anything else is the
- * same 404, so the route can't be used to find out which orders exist. The
- * answer holds what a status card needs, never the street address or phone.
+ * same 404, so the route can't be used to find out which orders exist. Lookups
+ * that match nothing are limited per order number and per store. The answer
+ * holds what a status card needs, never the street address or phone.
  *
  * @package ChatterMate
  */
@@ -17,8 +18,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Lookups of one order number per hour, matched or not.
-define( 'CHATTERMATE_ORDER_LOOKUPS_PER_HOUR', 10 );
+// Lookups that matched no order, per hour: for one order number, and for the whole store.
+define( 'CHATTERMATE_ORDER_MISSES_PER_NUMBER', 10 );
+define( 'CHATTERMATE_ORDER_MISSES_PER_STORE', 200 );
 define( 'CHATTERMATE_ORDER_MAX_ITEMS', 20 );
 
 /**
@@ -35,20 +37,8 @@ function chattermate_register_order_route() {
 			'methods'             => 'POST',
 			'callback'            => 'chattermate_lookup_order',
 			'permission_callback' => function ( $request ) {
-				return chattermate_request_is_signed( $request, 'order_lookup' );
+				return $request->is_json_content_type() && chattermate_request_is_signed( $request, 'order_lookup' );
 			},
-			'args'                => array(
-				'order_number' => array(
-					'type'     => 'string',
-					'required' => true,
-					'pattern'  => '^[A-Za-z0-9-]{1,32}$',
-				),
-				'email'        => array(
-					'type'     => 'string',
-					'required' => true,
-					'format'   => 'email',
-				),
-			),
 		)
 	);
 }
@@ -61,36 +51,35 @@ add_action( 'rest_api_init', 'chattermate_register_order_route' );
  * @return WP_REST_Response|WP_Error
  */
 function chattermate_lookup_order( $request ) {
-	$number = (string) $request['order_number'];
-	$email  = strtolower( trim( (string) $request['email'] ) );
+	// Only the signed JSON body counts: never query or form parameters, which the
+	// signature doesn't cover.
+	$params = $request->get_json_params();
+	$number = is_array( $params ) && isset( $params['order_number'] ) ? (string) $params['order_number'] : '';
+	$email  = is_array( $params ) && isset( $params['email'] ) ? strtolower( trim( (string) $params['email'] ) ) : '';
+	if ( ! preg_match( '/^[A-Za-z0-9-]{1,32}$/', $number ) || ! is_email( $email ) ) {
+		return new WP_Error( 'chattermate_bad_request', 'An order number and an email are needed.', array( 'status' => 400 ) );
+	}
 
-	if ( ! chattermate_order_lookup_allowed( $number ) ) {
-		return new WP_Error( 'chattermate_too_many', 'Too many lookups for this order number.', array( 'status' => 429 ) );
+	$keys = array(
+		'chattermate_order_misses_' . md5( strtolower( $number ) ) => CHATTERMATE_ORDER_MISSES_PER_NUMBER,
+		'chattermate_order_misses'                                  => CHATTERMATE_ORDER_MISSES_PER_STORE,
+	);
+	foreach ( $keys as $key => $limit ) {
+		if ( (int) get_transient( $key ) >= $limit ) {
+			return new WP_Error( 'chattermate_too_many', 'Too many lookups that matched nothing.', array( 'status' => 429 ) );
+		}
 	}
 
 	$order = chattermate_find_order( $number );
 	if ( ! $order || ! hash_equals( strtolower( trim( (string) $order->get_billing_email() ) ), $email ) ) {
+		// Only misses count: a customer asking about their own order is never locked out
+		foreach ( array_keys( $keys ) as $key ) {
+			set_transient( $key, (int) get_transient( $key ) + 1, HOUR_IN_SECONDS );
+		}
 		return new WP_Error( 'chattermate_not_found', 'No such order.', array( 'status' => 404 ) );
 	}
 
 	return rest_ensure_response( array( 'order' => chattermate_order_summary( $order ) ) );
-}
-
-/**
- * Count a lookup of this number; false once the hour's allowance is used.
- *
- * @param string $number Order number.
- * @return bool
- */
-function chattermate_order_lookup_allowed( $number ) {
-	$key   = 'chattermate_order_lookups_' . md5( strtolower( $number ) );
-	$count = (int) get_transient( $key );
-	if ( $count >= CHATTERMATE_ORDER_LOOKUPS_PER_HOUR ) {
-		return false;
-	}
-	set_transient( $key, $count + 1, HOUR_IN_SECONDS );
-
-	return true;
 }
 
 /**

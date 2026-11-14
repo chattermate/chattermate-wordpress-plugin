@@ -81,14 +81,15 @@ function chattermate_request_is_signed( $request, $purpose ) {
 /**
  * POST a signed JSON call to the ChatterMate API.
  *
- * @param string $path    Path under the API URL, starting with /.
- * @param string $purpose What the call is for.
- * @param array  $payload JSON body.
- * @param bool   $wait    Whether to wait for the answer.
+ * @param string     $path    Path under the API URL, starting with /.
+ * @param string     $purpose What the call is for.
+ * @param array      $payload JSON body.
+ * @param bool       $wait    Whether to wait for the answer.
+ * @param array|null $link    The link to sign with; the current one when null.
  * @return array|WP_Error The response.
  */
-function chattermate_signed_post( $path, $purpose, $payload, $wait = true ) {
-	$link = chattermate_site_link();
+function chattermate_signed_post( $path, $purpose, $payload, $wait = true, $link = null ) {
+	$link = $link ? $link : chattermate_site_link();
 	if ( ! $link ) {
 		return new WP_Error( 'chattermate_not_linked', 'This site is not linked to ChatterMate.' );
 	}
@@ -116,10 +117,12 @@ function chattermate_signed_post( $path, $purpose, $payload, $wait = true ) {
  *
  * @param string $token One-time token from the connect page.
  * @return string What ChatterMate did about learning the site: queued, off,
- *                source_limit, or failed when the claim didn't go through.
+ *                source_limit; linked_elsewhere when the agent already learns
+ *                another site; failed when the claim didn't go through.
  */
 function chattermate_claim_site( $token ) {
-	$secret  = wp_generate_password( 64, false, false );
+	$previous = chattermate_site_link();
+	$secret   = wp_generate_password( 64, false, false );
 	$payload = array(
 		'token'          => $token,
 		'site_url'       => home_url( '/' ),
@@ -138,7 +141,11 @@ function chattermate_claim_site( $token ) {
 			'body'       => wp_json_encode( $payload ),
 		)
 	);
-	if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+	$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+	if ( 409 === $code ) {
+		return 'linked_elsewhere';
+	}
+	if ( 200 !== $code ) {
 		return 'failed';
 	}
 	$answer = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -154,6 +161,11 @@ function chattermate_claim_site( $token ) {
 		),
 		false
 	);
+
+	// Linked for another agent before: that link stops, signed with its own secret.
+	if ( $previous && $previous['site_id'] !== (int) $answer['site_id'] ) {
+		chattermate_signed_post( '/enterprise/wordpress/sites/' . $previous['site_id'] . '/disconnect', 'disconnect', array(), false, $previous );
+	}
 
 	return isset( $answer['learning'] ) && is_string( $answer['learning'] ) ? $answer['learning'] : 'off';
 }
