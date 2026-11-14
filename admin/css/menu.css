@@ -1,0 +1,14 @@
+/**
+ * ChatterMate Chat: the admin menu icon, in its own colours.
+ *
+ * Loaded on every admin screen because the menu is on every screen. WordPress
+ * repaints SVG menu icons given to add_menu_page() in one colour, so the logo
+ * is set here instead.
+ */
+#adminmenu #toplevel_page_chattermate .wp-menu-image {
+	background: url("../images/menu-icon.svg") no-repeat center / 20px 20px;
+}
+
+#adminmenu #toplevel_page_chattermate .wp-menu-image::before {
+	content: none;
+}

@@ -1,0 +1,41 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "chattermate/chat-button",
+	"version": "1.1.0",
+	"title": "Chat button",
+	"category": "widgets",
+	"icon": "format-chat",
+	"description": "A button that opens the ChatterMate chat, optionally with a message typed in for the visitor.",
+	"keywords": [ "chat", "support", "help", "chattermate" ],
+	"textdomain": "chattermate-chat",
+	"attributes": {
+		"label": {
+			"type": "string",
+			"default": ""
+		},
+		"message": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"html": false,
+		"color": {
+			"background": true,
+			"text": true
+		},
+		"typography": {
+			"fontSize": true
+		},
+		"spacing": {
+			"padding": true,
+			"margin": true
+		},
+		"__experimentalBorder": {
+			"radius": true
+		}
+	},
+	"editorScript": "file:./index.js",
+	"render": "file:./render.php"
+}
