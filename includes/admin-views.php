@@ -95,7 +95,7 @@ function chattermate_connection_view( $options, $connection ) {
 		'pill'   => __( 'Not checked', 'chattermate-chat' ),
 		'title'  => __( "Couldn't reach ChatterMate", 'chattermate-chat' ),
 		'detail' => $when . ' ' . ( '' !== $options['api_url']
-			? __( 'Your settings are saved and the chat still loads. Check the API URL under Advanced: it should end in /api/v1. If your API is on a private network address, WordPress blocks the request; allow it with the http_request_host_is_external filter.', 'chattermate-chat' )
+			? __( 'Your settings are saved and the chat still loads. Check the API URL under Advanced: it should end in /api/v1. If your API is on a private network address, WordPress blocks the request; allow it with the http_request_host_is_external filter. WordPress also only calls ports 80, 443 and 8080: for another port, add it with the http_allowed_safe_ports filter.', 'chattermate-chat' )
 			: __( 'Your settings are saved and the chat still loads. Try Check again in a minute.', 'chattermate-chat' ) ),
 	);
 }

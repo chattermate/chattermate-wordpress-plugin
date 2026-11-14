@@ -4,8 +4,10 @@
  * back here with its Widget ID, so nobody copies and pastes it.
  *
  * Out: {app}/connect/wordpress?return_url=<admin-post.php?action=chattermate_connect>
- * &state=<random>&site_name=<site name>&site_url=<home URL>. Back: the same
- * admin-post URL with widget_id and state, or error=cancelled.
+ * &state=<random>&site_name=<site name>&site_url=<home URL>&store=<1 on WooCommerce>.
+ * Back: the same admin-post URL with widget_id and state, or error=cancelled. With
+ * "Teach the AI my pages and products" ticked, also connect_token, which this
+ * site claims from its own server (site-link.php).
  *
  * The state is random, single-use, tied to the admin who started and kept for an
  * hour, so a forged or replayed return changes nothing. Unlike a WordPress nonce
@@ -82,6 +84,7 @@ function chattermate_connect_url( $options ) {
 			'state'      => chattermate_issue_connect_state(),
 			'site_name'  => rawurlencode( wp_strip_all_tags( get_bloginfo( 'name' ) ) ),
 			'site_url'   => rawurlencode( home_url( '/' ) ),
+			'store'      => chattermate_woocommerce_active() ? '1' : '0',
 		),
 		chattermate_app_url( $options ) . '/connect/wordpress'
 	);
@@ -161,6 +164,7 @@ function chattermate_handle_connect_return() {
 	}
 
 	$widget_id = chattermate_sanitize_widget_id( isset( $_GET['widget_id'] ) ? sanitize_text_field( wp_unslash( $_GET['widget_id'] ) ) : '' );
+	$token     = isset( $_GET['connect_token'] ) ? sanitize_text_field( wp_unslash( $_GET['connect_token'] ) ) : '';
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	if ( '' === $widget_id ) {
 		chattermate_connect_redirect( 'missing' );
@@ -173,7 +177,22 @@ function chattermate_handle_connect_return() {
 
 	// The save hooks just checked the widget: say what they found.
 	$connection = chattermate_get_connection( chattermate_get_options() );
-	chattermate_connect_redirect( $connection && 'connected' === $connection['status'] ? 'connected' : 'saved' );
+	if ( ! $connection || 'connected' !== $connection['status'] ) {
+		chattermate_connect_redirect( 'saved' );
+	}
+
+	// Without a token the admin left learning off: a link made before stops here.
+	if ( '' === $token ) {
+		chattermate_unlink_site();
+		chattermate_connect_redirect( 'connected' );
+	}
+	$learning = chattermate_claim_site( $token );
+	$outcomes = array(
+		'queued'       => 'learning',
+		'source_limit' => 'learning_limit',
+		'failed'       => 'learning_failed',
+	);
+	chattermate_connect_redirect( isset( $outcomes[ $learning ] ) ? $outcomes[ $learning ] : 'connected' );
 }
 add_action( 'admin_post_chattermate_connect', 'chattermate_handle_connect_return' );
 
@@ -202,11 +221,14 @@ function chattermate_connect_redirect( $outcome ) {
  */
 function chattermate_connect_messages() {
 	return array(
-		'connected' => array( 'success', __( 'Connected. Your Widget ID is saved and the chat is live on your site.', 'chattermate-chat' ) ),
-		'saved'     => array( 'warning', __( 'Your Widget ID is saved, but the check below needs attention.', 'chattermate-chat' ) ),
-		'cancelled' => array( 'info', __( 'Connection cancelled. Nothing was changed.', 'chattermate-chat' ) ),
-		'expired'   => array( 'warning', __( 'That connection link has expired or was already used. Click Connect with ChatterMate again.', 'chattermate-chat' ) ),
-		'missing'   => array( 'warning', __( 'ChatterMate did not send a Widget ID. Click Connect with ChatterMate again, or paste the ID.', 'chattermate-chat' ) ),
+		'connected'       => array( 'success', __( 'Connected. Your Widget ID is saved and the chat is live on your site.', 'chattermate-chat' ) ),
+		'learning'        => array( 'success', __( 'Connected. The chat is live, and ChatterMate is learning your pages and products now. It keeps up as you edit them.', 'chattermate-chat' ) ),
+		'learning_limit'  => array( 'warning', __( 'Connected and the chat is live, but your ChatterMate plan has no room for another knowledge source. Remove one in ChatterMate, then connect again to teach it this site.', 'chattermate-chat' ) ),
+		'learning_failed' => array( 'warning', __( "Connected and the chat is live, but ChatterMate couldn't be reached to learn this site. Connect again in a minute.", 'chattermate-chat' ) ),
+		'saved'           => array( 'warning', __( 'Your Widget ID is saved, but the check below needs attention.', 'chattermate-chat' ) ),
+		'cancelled'       => array( 'info', __( 'Connection cancelled. Nothing was changed.', 'chattermate-chat' ) ),
+		'expired'         => array( 'warning', __( 'That connection link has expired or was already used. Click Connect with ChatterMate again.', 'chattermate-chat' ) ),
+		'missing'         => array( 'warning', __( 'ChatterMate did not send a Widget ID. Click Connect with ChatterMate again, or paste the ID.', 'chattermate-chat' ) ),
 	);
 }
 

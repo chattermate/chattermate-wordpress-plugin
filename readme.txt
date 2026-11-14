@@ -65,6 +65,15 @@ This plugin connects to ChatterMate, a hosted customer-support service run by Ch
 * The live preview loads the same widget as in 1 on the ChatterMate settings screen, only when an administrator clicks "Show live preview".
 * "Connect with ChatterMate" opens `https://app.chattermate.chat/connect/wordpress` in the administrator's browser with your site's name and address, the wp-admin address to return to and a one-time code. ChatterMate sends the administrator back with the chosen Widget ID. Nothing is sent from your server. (Offered on ChatterMate cloud; self-hosters paste the Widget ID.)
 
+**5. Learning your site and WooCommerce orders, only if you tick "Teach the AI my pages and products" when connecting**
+
+* Linking: your server sends `https://api.chattermate.chat/api/v1/enterprise/wordpress/sites/claim` the one-time code from the connect page, your site's address and REST API address, whether WooCommerce is active, the store's price decimals, and a secret it makes for this link. The secret then signs every call between your site and ChatterMate.
+* Learning: ChatterMate reads your published pages, posts and products through your site's public REST API (`/wp-json/wp/v2/pages`, `/wp-json/wp/v2/posts` and `/wp-json/wc/store/v1/products`), the same content any visitor can see.
+* Keeping up: when you publish, update or unpublish a page, post or product, or a product's stock status changes, your server sends ChatterMate a signed notice holding only your site's address, at most once every two minutes, so it reads the site again.
+* Order status (WooCommerce): ChatterMate's AI agent can ask your site about one order through a signed REST route (`/wp-json/chattermate/v1/orders/lookup`), with the order number and billing email the customer typed in the chat. Your site answers only when both match, with the order's status, date, items, totals, city, postcode, country and any tracking numbers; never the street address or phone number. At most 10 lookups per order number per hour.
+* Add to cart (WooCommerce): product cards in the chat add to the visitor's cart through your store's own Store API, in the visitor's browser. Nothing more is sent to ChatterMate.
+* Uninstalling the plugin tells ChatterMate to stop and deletes the secret. Connecting again without the box ticked removes the link too.
+
 If you self-host ChatterMate and set your own URLs under Advanced, all of this goes to your own servers instead.
 
 ChatterMate [Terms and Conditions](https://chattermate.chat/terms-and-conditions/) and [Privacy Policy](https://chattermate.chat/privacy-policy/).
@@ -154,6 +163,8 @@ Yes. Under **Advanced**, set the widget script URL (your app URL followed by `/w
 * Suggested privacy-policy text.
 * Self-hosters can set the API URL as well as the script URL.
 * The widget is now enqueued the WordPress way instead of printed into the footer.
+* Teach the AI your pages, posts and products when you connect, read through the WordPress REST API and kept up to date as you edit.
+* WooCommerce: the AI finds products and shows them as cards, customers add to cart from the chat, and they can ask about an order with its number and billing email.
 
 = 1.0.0 =
 * Initial release: add the ChatterMate chat with a Widget ID, with an optional script URL for self-hosted installs.
@@ -161,4 +172,4 @@ Yes. Under **Advanced**, set the widget script URL (your app URL followed by `/w
 == Upgrade Notice ==
 
 = 1.1.0 =
-A new ChatterMate screen with one-click connect, visibility rules, page-aware answers, signed-in customers and a Chat button block.
+A new ChatterMate screen with one-click connect, visibility rules, page-aware answers, signed-in customers, a Chat button block, and WooCommerce products, cart and order status in the chat.

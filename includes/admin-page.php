@@ -137,6 +137,7 @@ function chattermate_privacy_policy_content() {
 
 	$content = '<p>' . esc_html__( 'This site uses ChatterMate to answer questions in a chat window. When you open a page with the chat, your browser loads the chat from ChatterMate. What you type in the chat, and any name or email you give, is sent to ChatterMate to answer you and to let our team follow up. ChatterMate also receives standard request details such as your IP address and browser type, and keeps a token in your browser so the conversation continues across pages.', 'chattermate-chat' ) . '</p>'
 		. '<p>' . esc_html__( 'To answer better, the chat may also tell ChatterMate which page you are on, the product you are looking at and, when you open the chat, what is in your shopping cart. If you are logged in to this site, your name and email address may be sent so our team knows who they are talking to.', 'chattermate-chat' ) . '</p>'
+		. '<p>' . esc_html__( 'If you ask the chat about an order, the order number and billing email you type are used to look it up on this site. The chat is told the order\'s status, date, items, total, delivery town and postcode and any tracking numbers, only when both match.', 'chattermate-chat' ) . '</p>'
 		. '<p>' . sprintf(
 			/* translators: %s: ChatterMate privacy policy URL. */
 			esc_html__( 'ChatterMate privacy policy: %s', 'chattermate-chat' ),

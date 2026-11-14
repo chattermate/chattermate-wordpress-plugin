@@ -173,6 +173,16 @@ function chattermate_helper_config( $options ) {
 		}
 	}
 
+	// The loader's cart bridge, for "Add to cart" on product cards in the chat
+	if ( chattermate_woocommerce_active() && chattermate_site_link() && function_exists( 'wc_get_cart_url' ) ) {
+		$config['woocommerce'] = array(
+			'home'         => home_url( '/' ),
+			'storeApi'     => esc_url_raw( get_rest_url( null, 'wc/store/v1/' ) ),
+			'cartPage'     => esc_url_raw( wc_get_cart_url() ),
+			'checkoutPage' => esc_url_raw( wc_get_checkout_url() ),
+		);
+	}
+
 	return 'window.chattermateWp=' . wp_json_encode( $config ) . ';';
 }
 
